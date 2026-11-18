@@ -122,7 +122,10 @@ test('missing and final-only usage produce different available metrics', async (
       openAIFinish(send);
     }
   }, async (baseUrl) => {
-    const s = await run(baseUrl);
+    const lanes = [];
+    const s = await run(baseUrl, {}, (event) => {
+      if (event.type === 'decode_lane') lanes.push(event);
+    });
     assert.equal(s.prefill.ok, 2);
     assert.equal(s.prefill.throughput, null);
     assert.equal(s.prefill.totalTokens, null);
@@ -130,7 +133,8 @@ test('missing and final-only usage produce different available metrics', async (
     assert.equal(s.single.speed, null);
     assert.ok(s.single.e2eSpeed > 0);
     assert.equal(s.decode.totalTokens, 64);
-    assert.ok(s.decode.lanes.every((lane) => lane.e2eSpeed > 0 && lane.speed == null));
+    assert.equal(lanes.length, 2);
+    assert.ok(lanes.every((lane) => lane.e2eSpeed > 0 && lane.speed == null));
     assert.ok(s.decode.throughput > 0);
     assert.equal(s.decode.overlap, null);
     assert.equal(s.decode.avgSpeed, null);
