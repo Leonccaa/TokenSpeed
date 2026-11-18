@@ -1,9 +1,13 @@
 'use strict';
 
 (() => {
+  const preferenceKey = 'ts3.language';
   const preferredLanguage = navigator.languages?.[0] || navigator.language || '';
-  const chinese = /^zh(?:-|$)/i.test(preferredLanguage);
-  const language = chinese ? 'zh-CN' : 'en';
+  let language = /^zh(?:-|$)/i.test(preferredLanguage) ? 'zh-CN' : 'en';
+  try {
+    const saved = localStorage.getItem(preferenceKey);
+    if (saved === 'zh-CN' || saved === 'en') language = saved;
+  } catch (_) {}
   const english = {
     "TokenSpeed · 测测你的大模型 API 有多快": "TokenSpeed · LLM API Benchmark",
     "一键测出大模型 API 的响应延迟、读取速度、单发峰值速度和并发生成速度": "Measure LLM API response latency, prefill throughput, single-request peak and concurrent decode speed.",
@@ -328,9 +332,9 @@
   };
 
   function t(message, ...values) {
-    if (typeof message === 'string') return chinese || !Object.hasOwn(english, message) ? message : english[message];
+    if (typeof message === 'string') return language === 'zh-CN' || !Object.hasOwn(english, message) ? message : english[message];
     if (!Array.isArray(message)) return message == null ? '' : String(message);
-    if (chinese) return message.reduce((output, part, i) => output + (i ? values[i - 1] : '') + part, '');
+    if (language === 'zh-CN') return message.reduce((output, part, i) => output + (i ? values[i - 1] : '') + part, '');
     const key = message.map((part, i) => i < values.length ? part + '{' + i + '}' : part).join('');
     return t(key).replace(/\{(\d+)\}/g, (_, i) => values[Number(i)]);
   }
@@ -351,7 +355,7 @@
   };
 
   function localizeError(message) {
-    if (chinese || typeof message !== 'string') return message;
+    if (language === 'zh-CN' || typeof message !== 'string') return message;
     if (Object.hasOwn(english, message)) return t(message);
     for (const [prefix, label] of Object.entries(errorPrefixes)) {
       if (message.startsWith(prefix)) return label + localizeError(message.slice(prefix.length));
@@ -369,25 +373,48 @@
     return message;
   }
 
-  document.documentElement.lang = language;
-  if (!chinese) {
-    document.title = t(document.title);
-    const text = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    while (text.nextNode()) {
-      const node = text.currentNode;
-      const source = node.nodeValue.trim();
-      if (Object.hasOwn(english, source)) node.nodeValue = node.nodeValue.replace(source, () => t(source));
-    }
-    for (const element of document.querySelectorAll('[title], [placeholder], [aria-label], meta[name="description"]')) {
-      for (const attribute of ['title', 'placeholder', 'aria-label', 'content']) {
-        if (element.hasAttribute(attribute)) element.setAttribute(attribute, t(element.getAttribute(attribute)));
-      }
-    }
-    // These two headings need different emphasis and word order in English.
-    for (const element of document.querySelectorAll('[data-i18n-html]')) {
-      element.innerHTML = t(element.dataset.i18nHtml);
+  const pageTitle = document.title;
+  const updatePage = [];
+  const text = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  while (text.nextNode()) {
+    const node = text.currentNode;
+    if (node.parentElement?.closest('[data-i18n-html]')) continue;
+    const original = node.nodeValue;
+    const source = original.trim();
+    if (Object.hasOwn(english, source)) {
+      updatePage.push(() => { node.nodeValue = original.replace(source, () => t(source)); });
     }
   }
+  for (const element of document.querySelectorAll('[title], [placeholder], [aria-label], meta[name="description"]')) {
+    for (const attribute of ['title', 'placeholder', 'aria-label', 'content']) {
+      const source = element.getAttribute(attribute);
+      if (source && Object.hasOwn(english, source)) {
+        updatePage.push(() => element.setAttribute(attribute, t(source)));
+      }
+    }
+  }
+  // These two headings need different emphasis and word order in English.
+  for (const element of document.querySelectorAll('[data-i18n-html]')) {
+    const chineseHTML = element.innerHTML;
+    const englishHTML = english[element.dataset.i18nHtml];
+    updatePage.push(() => { element.innerHTML = language === 'zh-CN' ? chineseHTML : englishHTML; });
+  }
 
-  window.TokenSpeedLocale = { language, t, localizeError };
+  function renderPage() {
+    document.documentElement.lang = language;
+    document.title = t(pageTitle);
+    for (const update of updatePage) update();
+  }
+
+  function setLanguage(next) {
+    if ((next !== 'zh-CN' && next !== 'en') || next === language) return;
+    language = next;
+    try {
+      localStorage.setItem(preferenceKey, language);
+    } catch (_) {}
+    renderPage();
+  }
+
+  renderPage();
+  window.TokenSpeedLocale = { get language() { return language; }, t, localizeError, setLanguage };
 })();

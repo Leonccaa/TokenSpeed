@@ -49,6 +49,8 @@ svg { display: block; }
 .nav-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .nav-btn.on { background: var(--z3); color: #fff; }
 .nav-btn.icon { padding: 7px; }
+.lang-toggle { justify-content: center; min-width: 40px; white-space: nowrap; }
+.lang-toggle:disabled { opacity: 0.55; cursor: default; }
 
 .main { max-width: 1080px; margin: 0 auto; padding: 0 20px 40px; }
 .view { animation: viewIn 0.4s cubic-bezier(0.3, 1.4, 0.5, 1) both; }
@@ -299,6 +301,12 @@ input:focus { background: #fff; box-shadow: 3px 3px 0 var(--c1); }
   .steps { margin-left: 0; }
   .nav-btn span { display: none; }
   .deco { display: none; }
+}
+@media (max-width: 480px) {
+  .nav { padding-inline: 12px; gap: 6px; }
+  .nav .nav-btn { padding: 6px 8px; }
+  .logo { font-size: 17px; gap: 6px; }
+  .logo-mark { width: 30px; height: 30px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .view { animation: none; }

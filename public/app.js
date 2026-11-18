@@ -1,7 +1,8 @@
 'use strict';
 /* TokenSpeed · 前端（扁平矢量版） */
 (() => {
-  const { language, t: translate, localizeError } = window.TokenSpeedLocale;
+  const locale = window.TokenSpeedLocale;
+  const { t: translate, localizeError } = locale;
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const now = () => performance.now();
@@ -16,13 +17,13 @@
   const laneCol = (i) => COL[LANE_KEYS[i % 4]];
 
   const PROVIDERS = [
-    { id: 'custom', name: translate('自定义 / 自部署'), base: '', model: '' },
+    { id: 'custom', name: '自定义 / 自部署', base: '', model: '' },
     { id: 'deepseek', name: 'DeepSeek', base: 'https://api.deepseek.com/v1', model: 'deepseek-chat', key: 'https://platform.deepseek.com/api_keys' },
     { id: 'kimi', name: 'Kimi', base: 'https://api.moonshot.cn/v1', model: 'kimi-k2-0905-preview', key: 'https://platform.moonshot.cn/console/api-keys' },
-    { id: 'qwen', name: translate('通义千问'), base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', key: 'https://bailian.console.aliyun.com/?apiKey=1' },
-    { id: 'glm', name: translate('智谱 GLM'), base: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4.6', key: 'https://open.bigmodel.cn/usercenter/apikeys' },
-    { id: 'sf', name: translate('硅基流动'), base: 'https://api.siliconflow.cn/v1', model: 'deepseek-ai/DeepSeek-V3', key: 'https://cloud.siliconflow.cn/account/ak' },
-    { id: 'ark', name: translate('火山方舟'), base: 'https://ark.cn-beijing.volces.com/api/v3', model: '', key: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey' },
+    { id: 'qwen', name: '通义千问', base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', key: 'https://bailian.console.aliyun.com/?apiKey=1' },
+    { id: 'glm', name: '智谱 GLM', base: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4.6', key: 'https://open.bigmodel.cn/usercenter/apikeys' },
+    { id: 'sf', name: '硅基流动', base: 'https://api.siliconflow.cn/v1', model: 'deepseek-ai/DeepSeek-V3', key: 'https://cloud.siliconflow.cn/account/ak' },
+    { id: 'ark', name: '火山方舟', base: 'https://ark.cn-beijing.volces.com/api/v3', model: '', key: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey' },
     { id: 'openai', name: 'OpenAI', base: 'https://api.openai.com/v1', model: 'gpt-4o-mini', key: 'https://platform.openai.com/api-keys' },
     { id: 'claude', name: 'Claude', base: 'https://api.anthropic.com', format: 'anthropic', model: 'claude-sonnet-5-5', key: 'https://console.anthropic.com/settings/keys' },
     { id: 'openrouter', name: 'OpenRouter', base: 'https://openrouter.ai/api/v1', model: '', key: 'https://openrouter.ai/keys' },
@@ -31,15 +32,15 @@
   // ---------------- 工具
   const fmt = (v, d) => {
     if (v == null || !Number.isFinite(v)) return '—';
-    if (d != null) return v.toLocaleString(language, { maximumFractionDigits: d, minimumFractionDigits: d });
-    if (Math.abs(v) >= 100) return Math.round(v).toLocaleString(language);
+    if (d != null) return v.toLocaleString(locale.language, { maximumFractionDigits: d, minimumFractionDigits: d });
+    if (Math.abs(v) >= 100) return Math.round(v).toLocaleString(locale.language);
     if (Math.abs(v) >= 10) return v.toFixed(1);
     return v.toFixed(2);
   };
   const fmtK = (v) => (v == null ? '—' : v >= 1000 ? +(v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'K' : String(Math.round(v)));
   const fmtTok = (v) => (v == null ? '—' : v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1000 ? +(v / 1000).toFixed(1) + 'K' : String(Math.round(v || 0)));
   const fmtRate = (v) => (v == null ? translate('不可用') : `${fmt(v, 1)} tok/s`);
-  const fmtUsage = new Intl.NumberFormat(language, { notation: 'compact', maximumFractionDigits: 1 });
+  let fmtUsage = new Intl.NumberFormat(locale.language, { notation: 'compact', maximumFractionDigits: 1 });
   const fmtS = (ms) => (ms == null ? '—' : ms >= 1000 ? (ms / 1000).toFixed(2) + translate(' 秒') : Math.round(ms) + translate(' 毫秒'));
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const host = (u) => {
@@ -391,7 +392,7 @@
   let provider = 'custom';
   const providerSettings = {};
   const apiKeys = new Map(); // API Key 仅保留在当前页面内存中
-  const thinkingLabels = { default: translate('跟随接口'), on: translate('请求开启'), off: translate('请求关闭') };
+  const thinkingLabels = { default: '跟随接口', on: '请求开启', off: '请求关闭' };
   const supportsThinking = () => provider === 'qwen' || provider === 'deepseek' || (provider === 'custom' && segVal('fFormat') === 'openai');
   const segVal = (id) => ($(`#${id} button.on`) || {}).dataset?.v;
   const setSeg = (id, v) => $$(`#${id} button`).forEach((b) => {
@@ -414,11 +415,15 @@
     })
   );
 
-  $('#chips').innerHTML = PROVIDERS.map((p) => `<button class="chip" type="button" data-id="${p.id}">${p.name}</button>`).join('');
+  $('#chips').innerHTML = PROVIDERS.map((p) => `<button class="chip" type="button" data-id="${p.id}">${translate(p.name)}</button>`).join('');
   $('#chips').addEventListener('click', (e) => {
     const b = e.target.closest('.chip');
     if (b) selectProvider(b.dataset.id, true);
   });
+
+  function syncModelPlaceholder(p) {
+    F.model.placeholder = p.model ? translate`例如 ${p.model}` : translate('填写模型名称，或点「获取列表」');
+  }
 
   function selectProvider(id, user) {
     if (user) stash();
@@ -434,14 +439,15 @@
     }
     F.key.value = apiKeys.get(provider) || '';
     F.model.value = saved.model != null ? saved.model : p.model;
-    F.model.placeholder = p.model ? translate`例如 ${p.model}` : translate('填写模型名称，或点「获取列表」');
+    syncModelPlaceholder(p);
     setSeg('fThinking', Object.hasOwn(thinkingLabels, saved.thinkingMode) ? saved.thinkingMode : 'default');
     syncThinking();
     const kl = $('#keyLink');
     kl.hidden = !p.key;
     if (p.key) kl.href = p.key;
     $('#modelList').innerHTML = '';
-    $('#modelHint').textContent = '';
+    modelCount = null;
+    syncModelHint();
     if (user) persist();
   }
 
@@ -590,6 +596,11 @@
     $('#btnAdv').textContent = a.hidden ? translate('高级设置') : translate('收起高级设置');
   });
 
+  let modelCount;
+  function syncModelHint() {
+    $('#modelHint').textContent = modelCount == null ? '' : translate`· 可选 ${modelCount} 个`;
+  }
+
   async function fetchModels() {
     const c = readCfg();
     const direct = needsBrowserDirect(c.baseUrl);
@@ -605,13 +616,15 @@
         : await fetch('./api/models', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(c) }).then((r) => r.json());
       if (r.error) throw new Error(r.error);
       $('#modelList').innerHTML = r.models.map((m) => `<option value="${esc(m)}">`).join('');
-      $('#modelHint').textContent = translate`· 可选 ${r.models.length} 个`;
+      modelCount = r.models.length;
+      syncModelHint();
       if (!F.model.value && r.models[0]) F.model.value = r.models[0];
       toast(translate`获取到 ${r.models.length} 个模型，点模型输入框即可选择`);
       F.model.focus();
       persist();
     } catch (e) {
-      $('#modelHint').textContent = '';
+      modelCount = null;
+      syncModelHint();
       toast(translate('获取模型列表失败：') + localizeError(e.message), true);
     } finally {
       btn.classList.remove('loading');
@@ -622,12 +635,12 @@
 
   // ---------------- 阶段定义
   const STAGE = {
-    ping: { name: translate('延迟'), label: translate('响应延迟'), scale: () => [0, 200, 400, 800, 1600, 3200], lbl: (v) => (v >= 1000 ? v / 1000 + 's' : v), tiers: [] },
+    ping: { name: '延迟', label: '响应延迟', scale: () => [0, 200, 400, 800, 1600, 3200], lbl: (v) => (v >= 1000 ? v / 1000 + 's' : v), tiers: [] },
     // 读取速度是整个服务的吞吐：已读完的 token 总数 ÷ 用时
-    prefill: { name: translate('读取'), label: translate('读取速度 · 整体吞吐'), scale: () => [0, 5000, 10000, 20000, 40000, 80000], lbl: fmtK, tiers: [[5000, translate('能用')], [10000, translate('流畅')], [25000, translate('飞快')], [50000, translate('起飞')]] },
-    single: { name: translate('峰值'), label: translate('单发峰值速度'), scale: () => [0, 25, 50, 80, 120, 200], lbl: fmtK, tiers: [[25, translate('能用')], [50, translate('流畅')], [80, translate('飞快')], [120, translate('起飞')]] },
+    prefill: { name: '读取', label: '读取速度 · 整体吞吐', scale: () => [0, 5000, 10000, 20000, 40000, 80000], lbl: fmtK, tiers: [[5000, '能用'], [10000, '流畅'], [25000, '飞快'], [50000, '起飞']] },
+    single: { name: '峰值', label: '单发峰值速度', scale: () => [0, 25, 50, 80, 120, 200], lbl: fmtK, tiers: [[25, '能用'], [50, '流畅'], [80, '飞快'], [120, '起飞']] },
     // 并发阶段仪表显示合计吞吐，档位按单路平均速度判断
-    decode: { name: translate('并发'), label: translate('实时并发输出速度'), scale: (n) => [0, 10, 25, 50, 80, 125].map((x) => x * n), lbl: fmtK, tiers: [[20, translate('能用')], [40, translate('流畅')], [60, translate('强劲')], [90, translate('爆表')]] },
+    decode: { name: '并发', label: '实时并发输出速度', scale: (n) => [0, 10, 25, 50, 80, 125].map((x) => x * n), lbl: fmtK, tiers: [[20, '能用'], [40, '流畅'], [60, '强劲'], [90, '爆表']] },
   };
   const tierOf = (k, v) => {
     const t = STAGE[k].tiers;
@@ -635,7 +648,7 @@
     t.forEach(([th], i) => {
       if (v >= th) idx = i + 1;
     });
-    return [idx, idx ? t[idx - 1][1] : translate('偏慢')];
+    return [idx, translate(idx ? t[idx - 1][1] : '偏慢')];
   };
   const pingRate = (ms) => (ms < 400 ? [1, translate('极快')] : ms < 1000 ? [2, translate('良好')] : ms < 2500 ? [3, translate('一般')] : [4, translate('偏慢')]);
 
@@ -689,7 +702,7 @@
     G.setScale(st.scale(n), st.lbl);
     G.scan(false);
     setTier(0, k === 'ping' ? translate('测量中') : translate('起步'));
-    $('#gK').textContent = st.label;
+    $('#gK').textContent = translate(st.label);
     $('#gUnit').textContent = k === 'ping' ? translate('毫秒') : 'tok/s';
     $('#gNum').textContent = '—';
     html($('#gSub'), '&nbsp;');
@@ -720,6 +733,15 @@
     }
   }
 
+  function syncTestHeading() {
+    const { cfg, direct } = S;
+    if (!cfg) return;
+    $('#tHost').textContent = translate`${host(cfg.baseUrl)} · ${direct ? translate('浏览器直连 · ') : ''}${fmtTok(cfg.contextTokens)} 资料 · ${cfg.concurrency} 并发`;
+    for (const step of $$('#steps [data-s]')) {
+      $('span', step).textContent = translate(STAGE[step.dataset.s].name);
+    }
+  }
+
   async function start(demo) {
     if (S.running) return;
     const cfg = readCfg();
@@ -744,9 +766,10 @@
     for (const k in S) delete S[k];
     Object.assign(S, { running: true, cfg, demo, direct, runId: null, ping: null, prefill: null, single: null, decode: null, summary: null, error: null });
     $('#tModel').textContent = cfg.model;
-    $('#tHost').textContent = translate`${host(cfg.baseUrl)} · ${direct ? translate('浏览器直连 · ') : ''}${fmtTok(cfg.contextTokens)} 资料 · ${cfg.concurrency} 并发`;
+    syncTestHeading();
+    syncLanguageButton();
     const order = ['ping', cfg.runPrefill && 'prefill', cfg.runSingle && 'single', cfg.runDecode && 'decode'].filter(Boolean);
-    $('#steps').innerHTML = order.map((k) => `<li class="step wait" data-s="${k}"><span>${STAGE[k].name}</span><b>—</b><small></small></li>`).join('');
+    $('#steps').innerHTML = order.map((k) => `<li class="step wait" data-s="${k}"><span>${translate(STAGE[k].name)}</span><b>—</b><small></small></li>`).join('');
     $('#result').hidden = true;
     $('#gCard').hidden = false;
     $('#scope').hidden = true;
@@ -767,21 +790,23 @@
         await client.runBenchmark(cfg, on, S.directCtl);
       } else await runViaServer(cfg, S.ctrl.signal);
     } catch (e) {
-      if (e.name !== 'AbortError') S.error = /fetch/i.test(e.message) ? translate('无法连接测速服务，请确认 npm start 正在运行') : localizeError(e.message);
-      else S.error = S.error || translate('已停止');
+      if (e.name !== 'AbortError') S.error = /fetch/i.test(e.message) ? '无法连接测速服务，请确认 npm start 正在运行' : e.message;
+      else S.error = S.error || '已停止';
     }
     finish();
   }
 
   function finish() {
     S.running = false;
+    syncLanguageButton();
     G.scan(false);
     $('#btnStop').hidden = true;
     $('#btnEndDecode').hidden = true;
     $$('.step.active').forEach((li) => (li.className = 'step skip'));
     $$('.lane.live').forEach((l) => l.classList.remove('live'));
-    if (S.error && S.error !== translate('已停止')) toast(S.error, true);
+    if (S.error && S.error !== '已停止') toast(localizeError(S.error), true);
     if (S.ping || S.prefill || S.single || S.decode) {
+      S.previousBest = bestOf(S.cfg);
       renderResult();
       if (S.summary && !S.demo) saveHistory();
     } else {
@@ -848,7 +873,7 @@
         S.summary = ev.summary;
         break;
       case 'error':
-        S.error = localizeError(ev.message);
+        S.error = ev.message;
         break;
     }
   }
@@ -1228,7 +1253,7 @@
     if (s) tiles.push([translate('单发峰值'), fmt(s.peak, 1), s.peak == null ? translate('需逐块用量与完整 2 秒窗口') : translate('tok/s · 固定 2 秒窗口'), 'z3', 'light']);
     if (d) tiles.push([translate`${d.n} 路同时解码`, fmt(d.overlap?.throughput, 1), d.overlap ? translate`tok/s · 共同窗口 ${fmtS(d.overlap.windowMs)}` : translate('需要共同窗口和逐块用量'), 'c1', 'light']);
     const [ri, rname] = mainRating();
-    const best = bestOf(cfg);
+    const best = S.previousBest;
     let sub = '';
     if (S.demo) sub = translate('演示数据');
     else if (s?.peak != null && best == null) sub = translate('首次测试');
@@ -1242,7 +1267,7 @@
     if (d?.overlap) parts.push(translate`${d.n} 路共同解码期间共输出 <b>${fmt(d.overlap.tokens, 0)}</b> tokens`);
     if (p) parts.push(translate`读取测试平均首包 <b>${fmtS(p.ttft.avg)}</b>`);
     if (d && d.cacheHitRate != null) parts.push(translate`前缀缓存命中 ${(d.cacheHitRate * 100).toFixed(0)}%`);
-    if (S.error && S.error !== translate('已停止')) parts.push(`<span class="err">${translate`测试未全部完成：${esc(S.error)}`}</span>`);
+    if (S.error && S.error !== '已停止') parts.push(`<span class="err">${translate`测试未全部完成：${esc(localizeError(S.error))}`}</span>`);
     else if (S.error) parts.push(translate('测试已手动停止'));
     $('#verdict').innerHTML = parts.join('；') + (parts.length ? '。' : '');
     syncRankingAction();
@@ -1261,7 +1286,7 @@
     r(translate('模型'), esc(cfg.model));
     r(translate('服务'), esc(host(cfg.baseUrl)));
     if (S.direct) r(translate('请求路径'), translate('浏览器直连本机'));
-    if (cfg.thinkingMode !== 'default') r(translate('思考模式'), thinkingLabels[cfg.thinkingMode]);
+    if (cfg.thinkingMode !== 'default') r(translate('思考模式'), translate(thinkingLabels[cfg.thinkingMode]));
     if (ping) {
       r(translate('延迟 最快 / 平均'), translate`${fmt(ping.min, 0)} / ${fmt(ping.avg, 0)} 毫秒`);
       r(translate('延迟抖动'), translate`${fmt(ping.jitter, 0)} 毫秒`);
@@ -1397,7 +1422,7 @@
     c.fillText(model === cfg.model ? model : model + '…', 80, 290);
     c.font = font(600, 28);
     c.fillStyle = COL.muted;
-    c.fillText(`${host(cfg.baseUrl)} · ${new Date().toLocaleString(language)}`, 80, 338);
+    c.fillText(`${host(cfg.baseUrl)} · ${new Date().toLocaleString(locale.language)}`, 80, 338);
 
     items.forEach((it, i) => {
       const x = 80 + (i % 2) * (tw + 30), y = 400 + Math.floor(i / 2) * (th + 34);
@@ -1494,8 +1519,8 @@
     $('#hist').innerHTML = h.length
       ? h
           .map(
-            (x) => `<div class="h-item"><div class="h-top"><b>${esc(x.model)}</b><span>${new Date(x.t).toLocaleString(language)}</span></div>
-            <div class="h-host">${esc(x.host)}${thinkingLabels[x.thinkingMode] && x.thinkingMode !== 'default' ? translate(' · 思考') + thinkingLabels[x.thinkingMode] : ''}${x.metricsVersion === 2 ? '' : translate(' · 旧版统计口径')}</div>
+            (x) => `<div class="h-item"><div class="h-top"><b>${esc(x.model)}</b><span>${new Date(x.t).toLocaleString(locale.language)}</span></div>
+            <div class="h-host">${esc(x.host)}${thinkingLabels[x.thinkingMode] && x.thinkingMode !== 'default' ? translate(' · 思考') + translate(thinkingLabels[x.thinkingMode]) : ''}${x.metricsVersion === 2 ? '' : translate(' · 旧版统计口径')}</div>
             <div class="h-vals"><div>${translate('延迟')}<b>${x.ping != null ? fmt(x.ping, 0) : '—'}</b></div>
             <div>${translate('读取')}<b>${fmt(x.prefill, 1)}</b></div>
             <div>${translate('峰值')}<b>${x.single != null ? fmt(x.single, 1) : '—'}</b></div>
@@ -1631,7 +1656,7 @@
   });
   $('#btnStop').addEventListener('click', () => {
     if (S.runId) fetch('./api/stop', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: S.runId }) }).catch(() => {});
-    S.error = translate('已停止');
+    S.error = '已停止';
     S.ctrl && S.ctrl.abort();
   });
   $('#btnEndDecode').addEventListener('click', () => {
@@ -1652,7 +1677,39 @@
     if (e.key === 'Escape') $('#sheet').classList.remove('open');
   });
 
+  const languageButton = $('#btnLanguage');
+  function syncLanguageButton() {
+    const chinese = locale.language === 'zh-CN';
+    languageButton.disabled = Boolean(S.running);
+    languageButton.textContent = chinese ? 'EN' : '中文';
+    const label = chinese ? '切换为英文' : 'Switch to Chinese';
+    languageButton.setAttribute('aria-label', label);
+    languageButton.title = S.running
+      ? (chinese ? '测速完成后可切换语言' : 'Language can be changed after the benchmark')
+      : label;
+  }
+
+  languageButton.addEventListener('click', () => {
+    if (S.running) return;
+    locale.setLanguage(locale.language === 'zh-CN' ? 'en' : 'zh-CN');
+    fmtUsage = new Intl.NumberFormat(locale.language, { notation: 'compact', maximumFractionDigits: 1 });
+    syncLanguageButton();
+    syncSoundBtn();
+    $$('#chips .chip').forEach((button, i) => { button.textContent = translate(PROVIDERS[i].name); });
+    syncModelPlaceholder(PROVIDERS.find((item) => item.id === provider));
+    syncModelHint();
+    syncThinking();
+    const advanced = $('#adv');
+    $('#btnAdv').textContent = translate(advanced.hidden ? '高级设置' : '收起高级设置');
+    if ($('#btnModels').classList.contains('loading')) $('#btnModels').textContent = translate('获取中');
+    updateCost();
+    renderExplain();
+    syncTestHeading();
+    if (!$('#viewTest').hidden && !$('#result').hidden) renderResult();
+  });
+
   restore();
+  syncLanguageButton();
   fetch('./api/info').then((response) => response.json()).then((info) => {
     rankingsEnabled = info.rankings === true;
     $('#btnRankings').hidden = !rankingsEnabled;
