@@ -1,6 +1,7 @@
 'use strict';
 /* TokenSpeed · 前端（扁平矢量版） */
 (() => {
+  const { language, t: translate, localizeError } = window.TokenSpeedLocale;
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const now = () => performance.now();
@@ -15,13 +16,13 @@
   const laneCol = (i) => COL[LANE_KEYS[i % 4]];
 
   const PROVIDERS = [
-    { id: 'custom', name: '自定义 / 自部署', base: '', model: '' },
+    { id: 'custom', name: translate('自定义 / 自部署'), base: '', model: '' },
     { id: 'deepseek', name: 'DeepSeek', base: 'https://api.deepseek.com/v1', model: 'deepseek-chat', key: 'https://platform.deepseek.com/api_keys' },
     { id: 'kimi', name: 'Kimi', base: 'https://api.moonshot.cn/v1', model: 'kimi-k2-0905-preview', key: 'https://platform.moonshot.cn/console/api-keys' },
-    { id: 'qwen', name: '通义千问', base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', key: 'https://bailian.console.aliyun.com/?apiKey=1' },
-    { id: 'glm', name: '智谱 GLM', base: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4.6', key: 'https://open.bigmodel.cn/usercenter/apikeys' },
-    { id: 'sf', name: '硅基流动', base: 'https://api.siliconflow.cn/v1', model: 'deepseek-ai/DeepSeek-V3', key: 'https://cloud.siliconflow.cn/account/ak' },
-    { id: 'ark', name: '火山方舟', base: 'https://ark.cn-beijing.volces.com/api/v3', model: '', key: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey' },
+    { id: 'qwen', name: translate('通义千问'), base: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus', key: 'https://bailian.console.aliyun.com/?apiKey=1' },
+    { id: 'glm', name: translate('智谱 GLM'), base: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4.6', key: 'https://open.bigmodel.cn/usercenter/apikeys' },
+    { id: 'sf', name: translate('硅基流动'), base: 'https://api.siliconflow.cn/v1', model: 'deepseek-ai/DeepSeek-V3', key: 'https://cloud.siliconflow.cn/account/ak' },
+    { id: 'ark', name: translate('火山方舟'), base: 'https://ark.cn-beijing.volces.com/api/v3', model: '', key: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey' },
     { id: 'openai', name: 'OpenAI', base: 'https://api.openai.com/v1', model: 'gpt-4o-mini', key: 'https://platform.openai.com/api-keys' },
     { id: 'claude', name: 'Claude', base: 'https://api.anthropic.com', format: 'anthropic', model: 'claude-sonnet-5-5', key: 'https://console.anthropic.com/settings/keys' },
     { id: 'openrouter', name: 'OpenRouter', base: 'https://openrouter.ai/api/v1', model: '', key: 'https://openrouter.ai/keys' },
@@ -30,19 +31,19 @@
   // ---------------- 工具
   const fmt = (v, d) => {
     if (v == null || !Number.isFinite(v)) return '—';
-    if (d != null) return v.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
-    if (Math.abs(v) >= 100) return Math.round(v).toLocaleString('en-US');
+    if (d != null) return v.toLocaleString(language, { maximumFractionDigits: d, minimumFractionDigits: d });
+    if (Math.abs(v) >= 100) return Math.round(v).toLocaleString(language);
     if (Math.abs(v) >= 10) return v.toFixed(1);
     return v.toFixed(2);
   };
   const fmtK = (v) => (v == null ? '—' : v >= 1000 ? +(v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'K' : String(Math.round(v)));
   const fmtTok = (v) => (v == null ? '—' : v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1000 ? +(v / 1000).toFixed(1) + 'K' : String(Math.round(v || 0)));
-  const fmtRate = (v) => (v == null ? '不可用' : `${fmt(v, 1)} tok/s`);
-  const fmtWan = (v) => (v >= 10000 ? +(v / 10000).toFixed(1) + ' 万' : String(Math.round(v)));
-  const fmtS = (ms) => (ms == null ? '—' : ms >= 1000 ? (ms / 1000).toFixed(2) + ' 秒' : Math.round(ms) + ' 毫秒');
+  const fmtRate = (v) => (v == null ? translate('不可用') : `${fmt(v, 1)} tok/s`);
+  const fmtUsage = new Intl.NumberFormat(language, { notation: 'compact', maximumFractionDigits: 1 });
+  const fmtS = (ms) => (ms == null ? '—' : ms >= 1000 ? (ms / 1000).toFixed(2) + translate(' 秒') : Math.round(ms) + translate(' 毫秒'));
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const host = (u) => {
-    if (u === 'demo') return '演示服务（模拟数据）';
+    if (u === 'demo') return translate('演示服务（模拟数据）');
     try {
       return new URL(u).host;
     } catch (_) {
@@ -118,7 +119,7 @@
   };
   const syncSoundBtn = () => {
     $('#btnSound').classList.toggle('on', soundOn);
-    $('#btnSound span').textContent = soundOn ? '音效开' : '音效';
+    $('#btnSound span').textContent = soundOn ? translate('音效开') : translate('音效');
   };
   $('#btnSound').addEventListener('click', () => {
     soundOn = !soundOn;
@@ -390,7 +391,7 @@
   let provider = 'custom';
   const providerSettings = {};
   const apiKeys = new Map(); // API Key 仅保留在当前页面内存中
-  const thinkingLabels = { default: '跟随接口', on: '请求开启', off: '请求关闭' };
+  const thinkingLabels = { default: translate('跟随接口'), on: translate('请求开启'), off: translate('请求关闭') };
   const supportsThinking = () => provider === 'qwen' || provider === 'deepseek' || (provider === 'custom' && segVal('fFormat') === 'openai');
   const segVal = (id) => ($(`#${id} button.on`) || {}).dataset?.v;
   const setSeg = (id, v) => $$(`#${id} button`).forEach((b) => {
@@ -401,8 +402,8 @@
   function syncThinking() {
     $('#thinkingField').hidden = !supportsThinking();
     $('#thinkingHint').textContent = provider === 'custom'
-      ? '适用于支持思考开关的 vLLM / SGLang 兼容接口。'
-      : '需上游模型支持思考开关。';
+      ? translate('适用于支持思考开关的 vLLM / SGLang 兼容接口。')
+      : translate('需上游模型支持思考开关。');
   }
   $$('.seg').forEach((s) =>
     s.addEventListener('click', (e) => {
@@ -433,7 +434,7 @@
     }
     F.key.value = apiKeys.get(provider) || '';
     F.model.value = saved.model != null ? saved.model : p.model;
-    F.model.placeholder = p.model ? `例如 ${p.model}` : '填写模型名称，或点「获取列表」';
+    F.model.placeholder = p.model ? translate`例如 ${p.model}` : translate('填写模型名称，或点「获取列表」');
     setSeg('fThinking', Object.hasOwn(thinkingLabels, saved.thinkingMode) ? saved.thinkingMode : 'default');
     syncThinking();
     const kl = $('#keyLink');
@@ -489,15 +490,15 @@
 
   let directClient;
   function loadDirectClient() {
-    if (!window.isSecureContext) throw new Error('浏览器要求通过 HTTPS 打开 TokenSpeed 才能访问你的本机接口');
+    if (!window.isSecureContext) throw new Error(translate('浏览器要求通过 HTTPS 打开 TokenSpeed 才能访问你的本机接口'));
     directClient ??= new Promise((resolve, reject) => {
       const script = document.createElement('script');
       script.src = './direct-bench.js';
       script.onload = () => {
         if (window.TokenSpeedDirect) resolve(window.TokenSpeedDirect);
-        else reject(new Error('本机直连组件加载失败'));
+        else reject(new Error(translate('本机直连组件加载失败')));
       };
-      script.onerror = () => reject(new Error('本机直连组件加载失败'));
+      script.onerror = () => reject(new Error(translate('本机直连组件加载失败')));
       document.head.appendChild(script);
     }).catch((error) => {
       directClient = null;
@@ -556,9 +557,9 @@
     const cached = c.runDecode && c.runPrefill ? n * c.contextTokens : 0;
     const out = (c.runSingle ? c.singleMaxTokens : 0) + (c.runDecode ? n * c.maxTokens : 0);
     $('#cost').innerHTML =
-      `本次大约消耗：输入 <b>${fmtWan(inTok)}</b> tokens` +
-      (cached ? `（其中约 <b>${fmtWan(cached)}</b> 可命中缓存，通常更便宜）` : '') +
-      `，输出最多 <b>${fmtWan(out)}</b> tokens。`;
+      translate`本次大约消耗：输入 <b>${fmtUsage.format(inTok)}</b> tokens` +
+      (cached ? translate`（其中约 <b>${fmtUsage.format(cached)}</b> 可命中缓存，通常更便宜）` : '') +
+      translate`，输出最多 <b>${fmtUsage.format(out)}</b> tokens。`;
   }
 
   function renderExplain() {
@@ -567,14 +568,14 @@
     const hint = $('#directHint');
     hint.hidden = !direct;
     hint.textContent = direct ? (window.isSecureContext
-      ? '浏览器直连你的本机接口。请允许本站访问本机，模型服务也需允许本站跨域访问。'
-      : '浏览器要求通过 HTTPS 打开 TokenSpeed 才能访问你的本机接口。') : '';
+      ? translate('浏览器直连你的本机接口。请允许本站访问本机，模型服务也需允许本站跨域访问。')
+      : translate('浏览器要求通过 HTTPS 打开 TokenSpeed 才能访问你的本机接口。')) : '';
     const ctx = fmtTok(c.contextTokens);
     $('#explain').innerHTML = [
-      ['z1', '响应延迟', '发一句话，多久开始回复'],
-      ['z2', '读取速度', `并发发送 ${c.concurrency} 份目标约 ${ctx} tokens 的资料，计时至各路首包`],
-      ['z3', '峰值速度', '单独写一段代码，按逐块用量计算最快 2 秒'],
-      ['c1', '并发速度', `${c.concurrency} 路同时写不同领域的长文`],
+      ['z1', translate('响应延迟'), translate('发一句话，多久开始回复')],
+      ['z2', translate('读取速度'), translate`并发发送 ${c.concurrency} 份目标约 ${ctx} tokens 的资料，计时至各路首包`],
+      ['z3', translate('峰值速度'), translate('单独写一段代码，按逐块用量计算最快 2 秒')],
+      ['c1', translate('并发速度'), translate`${c.concurrency} 路同时写不同领域的长文`],
     ]
       .map(([col, k, v]) => `<li><b><i style="background:var(--${col})"></i>${k}</b>${v}</li>`)
       .join('');
@@ -586,47 +587,47 @@
   $('#btnAdv').addEventListener('click', () => {
     const a = $('#adv');
     a.hidden = !a.hidden;
-    $('#btnAdv').textContent = a.hidden ? '高级设置' : '收起高级设置';
+    $('#btnAdv').textContent = a.hidden ? translate('高级设置') : translate('收起高级设置');
   });
 
   async function fetchModels() {
     const c = readCfg();
     const direct = needsBrowserDirect(c.baseUrl);
     if (!c.baseUrl || (!c.apiKey && provider !== 'custom')) {
-      toast(c.baseUrl ? '请先填写 API Key' : '请先填写接口地址', true);
+      toast(c.baseUrl ? translate('请先填写 API Key') : translate('请先填写接口地址'), true);
       return;
     }
     const btn = $('#btnModels');
     btn.classList.add('loading');
-    btn.textContent = '获取中';
+    btn.textContent = translate('获取中');
     try {
       const r = direct ? { models: await (await loadDirectClient()).listModels(c) }
         : await fetch('./api/models', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(c) }).then((r) => r.json());
       if (r.error) throw new Error(r.error);
       $('#modelList').innerHTML = r.models.map((m) => `<option value="${esc(m)}">`).join('');
-      $('#modelHint').textContent = `· 可选 ${r.models.length} 个`;
+      $('#modelHint').textContent = translate`· 可选 ${r.models.length} 个`;
       if (!F.model.value && r.models[0]) F.model.value = r.models[0];
-      toast(`获取到 ${r.models.length} 个模型，点模型输入框即可选择`);
+      toast(translate`获取到 ${r.models.length} 个模型，点模型输入框即可选择`);
       F.model.focus();
       persist();
     } catch (e) {
       $('#modelHint').textContent = '';
-      toast('获取模型列表失败：' + e.message, true);
+      toast(translate('获取模型列表失败：') + localizeError(e.message), true);
     } finally {
       btn.classList.remove('loading');
-      btn.textContent = '获取列表';
+      btn.textContent = translate('获取列表');
     }
   }
   $('#btnModels').addEventListener('click', fetchModels);
 
   // ---------------- 阶段定义
   const STAGE = {
-    ping: { name: '延迟', label: '响应延迟', scale: () => [0, 200, 400, 800, 1600, 3200], lbl: (v) => (v >= 1000 ? v / 1000 + 's' : v), tiers: [] },
+    ping: { name: translate('延迟'), label: translate('响应延迟'), scale: () => [0, 200, 400, 800, 1600, 3200], lbl: (v) => (v >= 1000 ? v / 1000 + 's' : v), tiers: [] },
     // 读取速度是整个服务的吞吐：已读完的 token 总数 ÷ 用时
-    prefill: { name: '读取', label: '读取速度 · 整体吞吐', scale: () => [0, 5000, 10000, 20000, 40000, 80000], lbl: fmtK, tiers: [[5000, '能用'], [10000, '流畅'], [25000, '飞快'], [50000, '起飞']] },
-    single: { name: '峰值', label: '单发峰值速度', scale: () => [0, 25, 50, 80, 120, 200], lbl: fmtK, tiers: [[25, '能用'], [50, '流畅'], [80, '飞快'], [120, '起飞']] },
+    prefill: { name: translate('读取'), label: translate('读取速度 · 整体吞吐'), scale: () => [0, 5000, 10000, 20000, 40000, 80000], lbl: fmtK, tiers: [[5000, translate('能用')], [10000, translate('流畅')], [25000, translate('飞快')], [50000, translate('起飞')]] },
+    single: { name: translate('峰值'), label: translate('单发峰值速度'), scale: () => [0, 25, 50, 80, 120, 200], lbl: fmtK, tiers: [[25, translate('能用')], [50, translate('流畅')], [80, translate('飞快')], [120, translate('起飞')]] },
     // 并发阶段仪表显示合计吞吐，档位按单路平均速度判断
-    decode: { name: '并发', label: '实时并发输出速度', scale: (n) => [0, 10, 25, 50, 80, 125].map((x) => x * n), lbl: fmtK, tiers: [[20, '能用'], [40, '流畅'], [60, '强劲'], [90, '爆表']] },
+    decode: { name: translate('并发'), label: translate('实时并发输出速度'), scale: (n) => [0, 10, 25, 50, 80, 125].map((x) => x * n), lbl: fmtK, tiers: [[20, translate('能用')], [40, translate('流畅')], [60, translate('强劲')], [90, translate('爆表')]] },
   };
   const tierOf = (k, v) => {
     const t = STAGE[k].tiers;
@@ -634,9 +635,9 @@
     t.forEach(([th], i) => {
       if (v >= th) idx = i + 1;
     });
-    return [idx, idx ? t[idx - 1][1] : '偏慢'];
+    return [idx, idx ? t[idx - 1][1] : translate('偏慢')];
   };
-  const pingRate = (ms) => (ms < 400 ? [1, '极快'] : ms < 1000 ? [2, '良好'] : ms < 2500 ? [3, '一般'] : [4, '偏慢']);
+  const pingRate = (ms) => (ms < 400 ? [1, translate('极快')] : ms < 1000 ? [2, translate('良好')] : ms < 2500 ? [3, translate('一般')] : [4, translate('偏慢')]);
 
   // ---------------- 测速流程
   const S = {}; // 本次测速的数据
@@ -687,9 +688,9 @@
     const st = STAGE[k];
     G.setScale(st.scale(n), st.lbl);
     G.scan(false);
-    setTier(0, k === 'ping' ? '测量中' : '起步');
+    setTier(0, k === 'ping' ? translate('测量中') : translate('起步'));
     $('#gK').textContent = st.label;
-    $('#gUnit').textContent = k === 'ping' ? '毫秒' : 'tok/s';
+    $('#gUnit').textContent = k === 'ping' ? translate('毫秒') : 'tok/s';
     $('#gNum').textContent = '—';
     html($('#gSub'), '&nbsp;');
     $('#scope').hidden = !(k === 'single' || k === 'decode');
@@ -702,7 +703,7 @@
 
   async function runViaServer(cfg, signal) {
     const res = await fetch('./api/run', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(cfg), signal });
-    if (!res.ok || !res.body) throw new Error('测速服务异常 HTTP ' + res.status);
+    if (!res.ok || !res.body) throw new Error(translate('测速服务异常 HTTP ') + res.status);
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let buf = '';
@@ -724,26 +725,26 @@
     const cfg = readCfg();
     if (demo) Object.assign(cfg, { baseUrl: 'demo', model: 'demo-coder', apiKey: 'demo', format: 'openai', thinkingMode: 'default', extraBody: '', ignoreEos: false, maxTokens: 1024, singleMaxTokens: 600 });
     if (!demo) {
-      if (!cfg.baseUrl) return toast('请填写接口地址', true), F.base.focus();
-      if (!cfg.apiKey && provider !== 'custom') return toast('请先粘贴 API Key', true), F.key.focus();
-      if (!cfg.model) return toast('请填写模型名称', true), F.model.focus();
+      if (!cfg.baseUrl) return toast(translate('请填写接口地址'), true), F.base.focus();
+      if (!cfg.apiKey && provider !== 'custom') return toast(translate('请先粘贴 API Key'), true), F.key.focus();
+      if (!cfg.model) return toast(translate('请填写模型名称'), true), F.model.focus();
       if (cfg.extraBody) {
         try {
           JSON.parse(cfg.extraBody);
         } catch (_) {
-          return toast('额外请求参数不是合法的 JSON', true);
+          return toast(translate('额外请求参数不是合法的 JSON'), true);
         }
       }
     }
-    if (!cfg.runPrefill && !cfg.runSingle && !cfg.runDecode) return toast('请至少开启一个测试项目', true);
+    if (!cfg.runPrefill && !cfg.runSingle && !cfg.runDecode) return toast(translate('请至少开启一个测试项目'), true);
     const direct = needsBrowserDirect(cfg.baseUrl);
-    if (direct && !window.isSecureContext) return toast('请通过 HTTPS 打开 TokenSpeed，再测速你的本机接口', true);
+    if (direct && !window.isSecureContext) return toast(translate('请通过 HTTPS 打开 TokenSpeed，再测速你的本机接口'), true);
     ensureAudio();
 
     for (const k in S) delete S[k];
     Object.assign(S, { running: true, cfg, demo, direct, runId: null, ping: null, prefill: null, single: null, decode: null, summary: null, error: null });
     $('#tModel').textContent = cfg.model;
-    $('#tHost').textContent = `${host(cfg.baseUrl)} · ${direct ? '浏览器直连 · ' : ''}${fmtTok(cfg.contextTokens)} 资料 · ${cfg.concurrency} 并发`;
+    $('#tHost').textContent = translate`${host(cfg.baseUrl)} · ${direct ? translate('浏览器直连 · ') : ''}${fmtTok(cfg.contextTokens)} 资料 · ${cfg.concurrency} 并发`;
     const order = ['ping', cfg.runPrefill && 'prefill', cfg.runSingle && 'single', cfg.runDecode && 'decode'].filter(Boolean);
     $('#steps').innerHTML = order.map((k) => `<li class="step wait" data-s="${k}"><span>${STAGE[k].name}</span><b>—</b><small></small></li>`).join('');
     $('#result').hidden = true;
@@ -766,8 +767,8 @@
         await client.runBenchmark(cfg, on, S.directCtl);
       } else await runViaServer(cfg, S.ctrl.signal);
     } catch (e) {
-      if (e.name !== 'AbortError') S.error = /fetch/i.test(e.message) ? '无法连接测速服务，请确认 npm start 正在运行' : e.message;
-      else S.error = S.error || '已停止';
+      if (e.name !== 'AbortError') S.error = /fetch/i.test(e.message) ? translate('无法连接测速服务，请确认 npm start 正在运行') : localizeError(e.message);
+      else S.error = S.error || translate('已停止');
     }
     finish();
   }
@@ -779,7 +780,7 @@
     $('#btnEndDecode').hidden = true;
     $$('.step.active').forEach((li) => (li.className = 'step skip'));
     $$('.lane.live').forEach((l) => l.classList.remove('live'));
-    if (S.error && S.error !== '已停止') toast(S.error, true);
+    if (S.error && S.error !== translate('已停止')) toast(S.error, true);
     if (S.ping || S.prefill || S.single || S.decode) {
       renderResult();
       if (S.summary && !S.demo) saveHistory();
@@ -798,18 +799,18 @@
         if (ev.phase === 'ping') {
           enterStage('ping');
           V.fmt = (v) => fmt(v, 0);
-          html($('#gSub'), '正在连接…');
+          html($('#gSub'), translate('正在连接…'));
           V.pings = [];
         } else if (ev.phase === 'calibrate') {
           G.scan(true);
-          html($('#gSub'), '正在准备测试资料…');
+          html($('#gSub'), translate('正在准备测试资料…'));
         }
         break;
       case 'ping_sample':
-        if (ev.warm) html($('#gSub'), `已连接 · 首次握手 ${fmtS(ev.ms)}（不计入）`);
+        if (ev.warm) html($('#gSub'), translate`已连接 · 首次握手 ${fmtS(ev.ms)}（不计入）`);
         else {
           V.pings.push(ev.ms);
-          html($('#gSub'), `第 ${V.pings.length} / 3 次`);
+          html($('#gSub'), translate`第 ${V.pings.length} / 3 次`);
         }
         setGauge(ev.ms);
         punch($('#gNum'), 1.15);
@@ -821,7 +822,7 @@
         const [i, name] = pingRate(ev.min);
         setTier(i, name);
         punch($('#tier'), 1.4);
-        html($('#gSub'), `最快 ${fmt(ev.min, 0)} · 平均 ${fmt(ev.avg, 0)} · 抖动 ${fmt(ev.jitter, 0)} 毫秒`);
+        html($('#gSub'), translate`最快 ${fmt(ev.min, 0)} · 平均 ${fmt(ev.avg, 0)} · 抖动 ${fmt(ev.jitter, 0)} 毫秒`);
         setStep('ping', 'done', fmt(ev.min, 0), 'ms');
         break;
       }
@@ -847,7 +848,7 @@
         S.summary = ev.summary;
         break;
       case 'error':
-        S.error = ev.message;
+        S.error = localizeError(ev.message);
         break;
     }
   }
@@ -859,17 +860,17 @@
     V.numMode = 'elapsed';
     V.fmt = fmtK;
     V.pf = { n: ev.n, done: 0, fail: 0, tokens: 0, est: ev.estSeconds, target: ev.targetTokens };
-    $('#gUnit').textContent = '秒';
-    html($('#gSub'), `${ev.n} 路请求已发出，等第一份读完…`);
-    $('#liveT').textContent = `正在读取 ${ev.n} 份资料`;
-    $('#liveS').textContent = `每份约 ${fmtTok(ev.targetTokens)} tokens，来自不同领域`;
+    $('#gUnit').textContent = translate('秒');
+    html($('#gSub'), translate`${ev.n} 路请求已发出，等第一份读完…`);
+    $('#liveT').textContent = translate`正在读取 ${ev.n} 份资料`;
+    $('#liveS').textContent = translate`每份约 ${fmtTok(ev.targetTokens)} tokens，来自不同领域`;
     const grid = $('#grid');
     grid.className = 'grid';
     grid.innerHTML = ev.lanes
       .map(
-        (l) => `<div class="doc" style="--lc:${laneVar(l.i)}"><div class="d-fill"></div><div class="d-h"><i></i>${esc(l.doc)}</div>
+        (l) => `<div class="doc" style="--lc:${laneVar(l.i)}"><div class="d-fill"></div><div class="d-h"><i></i>${esc(translate(l.doc))}</div>
         <div class="d-lines">${[92, 70, 84, 56, 76].map((w) => `<i style="width:${w - Math.random() * 14}%"></i>`).join('')}</div>
-        <div class="d-st"><span>读取中</span><b>0.0s</b></div><div class="stamp">✓</div></div>`
+        <div class="d-st"><span>${translate('读取中')}</span><b>0.0s</b></div><div class="stamp">✓</div></div>`
       )
       .join('');
     V.docs = $$('.doc', grid).map((el) => ({ el, st: $('.d-st span', el), t: $('.d-st b', el), fill: $('.d-fill', el), stamp: $('.stamp', el), done: false }));
@@ -885,12 +886,12 @@
       P.fail++;
       d.el.classList.add('err');
       d.stamp.textContent = '✗';
-      d.st.textContent = '失败';
-      d.el.title = ev.error || '';
+      d.st.textContent = translate('失败');
+      d.el.title = localizeError(ev.error) || '';
       return;
     }
     d.el.classList.add('done');
-    d.st.textContent = ev.promptTokens == null ? '无输入用量' : `${fmt(ev.promptTokens, 0)} tokens`;
+    d.st.textContent = ev.promptTokens == null ? translate('无输入用量') : `${fmt(ev.promptTokens, 0)} tokens`;
     d.t.textContent = (ev.ttft / 1000).toFixed(1) + 's';
     shake(d.el, 0.5);
     P.done++;
@@ -907,7 +908,7 @@
     checkTier(V.value);
     punch($('#gNum'), 1.22);
     SFX.tick();
-    html($('#gSub'), `已读完 ${P.done} / ${P.n} 份`);
+    html($('#gSub'), translate`已读完 ${P.done} / ${P.n} 份`);
     if (P.done + P.fail === P.n && !P.fail) {
       burst();
       confetti(34, 1.2);
@@ -924,8 +925,8 @@
     G.scan(false);
     setGauge(ev.throughput);
     if (ev.throughput != null) setTier(...tierOf('prefill', ev.throughput));
-    else setTier(0, '不可用');
-    html($('#gSub'), ev.totalTokens == null ? '整轮输入用量不完整' : `${ev.ok} 路共 ${fmt(ev.totalTokens, 0)} tokens，${fmtS(ev.wallMs)}收到全部首包`);
+    else setTier(0, translate('不可用'));
+    html($('#gSub'), ev.totalTokens == null ? translate('整轮输入用量不完整') : translate`${ev.ok} 路共 ${fmt(ev.totalTokens, 0)} tokens，${fmtS(ev.wallMs)}收到全部首包`);
     setStep('prefill', 'done', fmt(ev.throughput, 1), 'tok/s');
   }
 
@@ -936,10 +937,10 @@
     grid.innerHTML = list
       .map(
         (l) => `<div class="lane" style="--lc:${laneVar(l.i + (single ? 2 : 0))}">
-          <div class="ln-h"><span><i></i>#${l.i + 1} ${esc(l.domain)}</span><em>等待中</em></div>
+          <div class="ln-h"><span><i></i>#${l.i + 1} ${esc(translate(l.domain))}</span><em>${translate('等待中')}</em></div>
           <div class="ln-sub">${esc(l.sub)}</div>
           <div class="ln-bar"><b></b></div>
-          <div class="ln-body"><pre><span class="wait">› 请求已发出，等待第一个字…</span><span class="cur"></span></pre></div></div>`
+          <div class="ln-body"><pre><span class="wait">${translate('› 请求已发出，等待第一个字…')}</span><span class="cur"></span></pre></div></div>`
       )
       .join('');
     V.lanes = $$('.lane', grid).map((el, k) => ({
@@ -967,25 +968,25 @@
   function onSingleStart(ev) {
     enterStage('single');
     V.max = ev.maxTokens;
-    $('#scT').textContent = '单路实时估算';
-    $('#liveT').textContent = '实时输出';
-    $('#liveS').textContent = `1 路 · 写代码 · 最多 ${fmt(ev.maxTokens, 0)} tokens`;
-    buildLanes([{ i: 0, domain: ev.domain, sub: '短提示词 · 测速度上限' }], true);
-    html($('#gSub'), '等待第一个字…');
+    $('#scT').textContent = translate('单路实时估算');
+    $('#liveT').textContent = translate('实时输出');
+    $('#liveS').textContent = translate`1 路 · 写代码 · 最多 ${fmt(ev.maxTokens, 0)} tokens`;
+    buildLanes([{ i: 0, domain: ev.domain, sub: translate('短提示词 · 测速度上限') }], true);
+    html($('#gSub'), translate('等待第一个字…'));
   }
 
   function onDecodeStart(ev) {
     enterStage('decode', ev.n);
     V.max = ev.maxTokens;
     V.n = ev.n;
-    $('#scT').textContent = '多路实时估算';
-    $('#liveT').textContent = '实时输出';
-    $('#liveS').textContent = `${ev.n} 路 · 不同领域 · 每路最多 ${fmt(ev.maxTokens, 0)} tokens，全部写完出结果`;
+    $('#scT').textContent = translate('多路实时估算');
+    $('#liveT').textContent = translate('实时输出');
+    $('#liveS').textContent = translate`${ev.n} 路 · 不同领域 · 每路最多 ${fmt(ev.maxTokens, 0)} tokens，全部写完出结果`;
     buildLanes(
-      ev.lanes.map((l) => ({ i: l.i, domain: l.domain, sub: l.reuse ? `前缀复用「${l.doc}」` : `资料「${l.doc}」` })),
+      ev.lanes.map((l) => ({ i: l.i, domain: l.domain, sub: l.reuse ? translate`前缀复用「${translate(l.doc)}」` : translate`资料「${translate(l.doc)}」` })),
       false
     );
-    html($('#gSub'), `${ev.n} 路请求已发出…`);
+    html($('#gSub'), translate`${ev.n} 路请求已发出…`);
   }
 
   function onTick(ev) {
@@ -1041,7 +1042,7 @@
     V.lanes.forEach((L) => {
       if (L.final) return;
       const sp = laneSpeed(L, t);
-      if (L.tFirst == null) html(L.em, '等待中');
+      if (L.tFirst == null) html(L.em, translate('等待中'));
       else html(L.em, `≈${fmt(sp, 1)}<small>tok/s</small>`);
       L.bar.style.width = Math.min(100, (L.tok / V.max) * 100).toFixed(1) + '%';
     });
@@ -1054,11 +1055,11 @@
       html(L.em, fmtRate(ev.speed));
       if (ev.tokens != null) L.bar.style.width = Math.min(100, (ev.tokens / V.max) * 100).toFixed(1) + '%';
     } else if (ev.stopped) {
-      html(L.em, '已停止');
+      html(L.em, translate('已停止'));
     } else {
       L.el.classList.add('err');
-      html(L.em, '失败');
-      append(L, `\n✗ ${ev.error}`, 'reasoning');
+      html(L.em, translate('失败'));
+      append(L, `\n✗ ${localizeError(ev.error)}`, 'reasoning');
     }
   }
 
@@ -1070,11 +1071,11 @@
     V.rate = ev.peak;
     setGauge(ev.peak);
     if (ev.peak != null) setTier(...tierOf('single', ev.peak));
-    else setTier(0, '不可用');
+    else setTier(0, translate('不可用'));
     punch($('#gNum'), 1.2);
     SFX.stamp();
-    $('#gK').textContent = '单发峰值速度 · 最快 2 秒';
-    html($('#gSub'), `解码平均 ${fmtRate(ev.speed)}${ev.byUser ? '（提前结束）' : ''}`);
+    $('#gK').textContent = translate('单发峰值速度 · 最快 2 秒');
+    html($('#gSub'), translate`解码平均 ${fmtRate(ev.speed)}${ev.byUser ? translate('（提前结束）') : ''}`);
     setStep('single', 'done', fmt(ev.peak, 1), 'tok/s');
     $('#btnEndDecode').hidden = true;
   }
@@ -1093,26 +1094,26 @@
     V.avg = ev.avgSpeed;
     setGauge(V.rate);
     if (ev.overlap) setTier(...tierOf('decode', V.rate / ev.n));
-    else setTier(0, '不可用');
+    else setTier(0, translate('不可用'));
     punch($('#gNum'), 1.2);
     confetti(26, 1);
     SFX.boom();
     $('#btnEndDecode').hidden = true;
-    $('#gK').textContent = `${ev.n} 路同时解码`;
-    html($('#gSub'), ev.overlap ? `共同解码窗口 ${fmtS(ev.overlap.windowMs)}` : '需要共同解码窗口和逐块累计用量');
+    $('#gK').textContent = translate`${ev.n} 路同时解码`;
+    html($('#gSub'), ev.overlap ? translate`共同解码窗口 ${fmtS(ev.overlap.windowMs)}` : translate('需要共同解码窗口和逐块累计用量'));
     setStep('decode', 'done', fmt(V.rate, 1), 'tok/s');
     const best = ev.lanes.filter((l) => l.ok && l.speed).sort((a, b) => b.speed - a.speed)[0];
     if (best && V.lanes[best.i]) {
       const W = V.lanes[best.i].el;
       W.classList.add('win');
-      W.insertAdjacentHTML('afterbegin', '<span class="ribbon">最快！</span>');
+      W.insertAdjacentHTML('afterbegin', `<span class="ribbon">${translate('最快！')}</span>`);
       anim(W, [{ transform: 'scale(1.06)' }, { transform: 'translateY(-4px)' }], { duration: 400, easing: 'cubic-bezier(.3,1.6,.5,1)' });
     }
     const b = $('#banner');
     b.hidden = false;
     b.innerHTML = `<span class="flag"></span><span>${
-      ev.byUser ? '已提前结束，并发吞吐成绩不可用。' : `${ev.ok} / ${ev.n} 路完成，整轮用时 ${fmtS(ev.windowMs)}。`
-    }${best ? ` 最快的是 <b>#${best.i + 1} ${esc(best.domain)}</b>，${fmt(best.speed, 1)} tok/s。` : ''}</span>`;
+      ev.byUser ? translate('已提前结束，并发吞吐成绩不可用。') : translate`${ev.ok} / ${ev.n} 路完成，整轮用时 ${fmtS(ev.windowMs)}。`
+    }${best ? translate` 最快的是 <b>#${best.i + 1} ${esc(translate(best.domain))}</b>，${fmt(best.speed, 1)} tok/s。` : ''}</span>`;
     anim(b, [{ transform: 'translateY(-14px) scale(.95)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 380, easing: 'cubic-bezier(.3,1.5,.5,1)' });
   }
 
@@ -1153,7 +1154,7 @@
         SC.push(V.final ? 0 : V.rate, b);
         $('#scRun').textContent = V.final ? 'STOP' : 'RUN';
         $('#scRun').classList.toggle('stop', V.final);
-        $('#scY').textContent = `满格 ${fmtK(SC.max)} tok/s`;
+        $('#scY').textContent = translate`满格 ${fmtK(SC.max)} tok/s`;
       }
       SC.draw();
     }
@@ -1162,7 +1163,7 @@
       if (V.stage) {
         const txt = V.numMode === 'elapsed' ? ((t - V.t0) / 1000).toFixed(1) : V.value != null && (V.value || V.final) ? V.fmt(V.value) : '—';
         $('#gNum').textContent = txt;
-        if (gen && !V.final && V.lanes.some((L) => L.tFirst != null)) html($('#gSub'), '实时估算 · 最终成绩使用上游用量');
+        if (gen && !V.final && V.lanes.some((L) => L.tFirst != null)) html($('#gSub'), translate('实时估算 · 最终成绩使用上游用量'));
       }
     }
     if (t - statAt > 250) {
@@ -1179,22 +1180,22 @@
     if (V.stage === 'ping') {
       const p = V.pings || [];
       const P = S.ping;
-      html(el, kv('最快', p.length ? fmt(Math.min(...p), 0) : '—', 'ms') + kv('平均', P ? fmt(P.avg, 0) : '—', 'ms') + kv('抖动', P ? fmt(P.jitter, 0) : '—', 'ms') + kv('样本', `${p.length} / 3`));
+      html(el, kv(translate('最快'), p.length ? fmt(Math.min(...p), 0) : '—', 'ms') + kv(translate('平均'), P ? fmt(P.avg, 0) : '—', 'ms') + kv(translate('抖动'), P ? fmt(P.jitter, 0) : '—', 'ms') + kv(translate('样本'), `${p.length} / 3`));
     } else if (V.stage === 'prefill' && V.pf) {
       const P = V.pf, R = S.prefill;
-      html(el, kv('已读完', `${P.done} / ${P.n}`, '份') + kv('用时', R ? (R.wallMs / 1000).toFixed(1) : ((t - V.t0) / 1000).toFixed(1), 's') + kv('已读 tokens', fmtTok(R ? R.totalTokens : P.missingUsage ? null : P.tokens), '') + kv('单份', fmtTok(P.target), 'tokens'));
+      html(el, kv(translate('已读完'), `${P.done} / ${P.n}`, translate('份')) + kv(translate('用时'), R ? (R.wallMs / 1000).toFixed(1) : ((t - V.t0) / 1000).toFixed(1), 's') + kv(translate('已读 tokens'), fmtTok(R ? R.totalTokens : P.missingUsage ? null : P.tokens), '') + kv(translate('单份'), fmtTok(P.target), 'tokens'));
     } else if (V.stage === 'single') {
       const L = V.lanes[0], R = S.single;
       const ttft = R ? R.ttft : L && L.tFirst != null ? L.tFirst - V.t0 : null;
-      html(el, kv('首包时间', ttft != null ? (R ? '' : '≈') + (ttft / 1000).toFixed(2) : '—', 's') + kv(R ? '解码平均' : '实时峰值估算', R ? fmt(R.speed, 1) : V.peak ? fmt(V.peak, 1) : '—', 'tok/s') + kv('已生成', R ? fmt(R.tokens, 0) : '≈' + fmtTok(V.total || 0), 'tokens') + kv('用时', ((R ? R.wallMs : t - V.t0) / 1000).toFixed(1), 's'));
+      html(el, kv(translate('首包时间'), ttft != null ? (R ? '' : '≈') + (ttft / 1000).toFixed(2) : '—', 's') + kv(R ? translate('解码平均') : translate('实时峰值估算'), R ? fmt(R.speed, 1) : V.peak ? fmt(V.peak, 1) : '—', 'tok/s') + kv(translate('已生成'), R ? fmt(R.tokens, 0) : '≈' + fmtTok(V.total || 0), 'tokens') + kv(translate('用时'), ((R ? R.wallMs : t - V.t0) / 1000).toFixed(1), 's'));
     } else if (V.stage === 'decode') {
       const R = S.decode;
       html(
         el,
-        kv('单路平均', V.avg ? fmt(V.avg, 1) : '—', 'tok/s') +
-          kv('缓存命中', R && R.cacheHitRate != null ? (R.cacheHitRate * 100).toFixed(1) : '—', '%') +
-          kv('已生成', R ? fmt(R.totalTokens, 0) : '≈' + fmtTok(V.total || 0), 'tokens') +
-          kv('用时', R ? (R.windowMs / 1000).toFixed(1) : ((t - V.t0) / 1000).toFixed(1), 's')
+        kv(translate('单路平均'), V.avg ? fmt(V.avg, 1) : '—', 'tok/s') +
+          kv(translate('缓存命中'), R && R.cacheHitRate != null ? (R.cacheHitRate * 100).toFixed(1) : '—', '%') +
+          kv(translate('已生成'), R ? fmt(R.totalTokens, 0) : '≈' + fmtTok(V.total || 0), 'tokens') +
+          kv(translate('用时'), R ? (R.windowMs / 1000).toFixed(1) : ((t - V.t0) / 1000).toFixed(1), 's')
       );
     }
   }
@@ -1222,27 +1223,27 @@
     V.stage = null;
     stopLoop();
     const tiles = [];
-    if (ping) tiles.push(['响应延迟', fmt(ping.min, 0), 'ms', 'z1', '']);
-    if (p) tiles.push(['读取速度', fmt(p.throughput, 1), p.throughput == null ? '整轮输入用量不完整' : 'tok/s · 首包前有效输入吞吐', 'z2', '']);
-    if (s) tiles.push(['单发峰值', fmt(s.peak, 1), s.peak == null ? '需逐块用量与完整 2 秒窗口' : 'tok/s · 固定 2 秒窗口', 'z3', 'light']);
-    if (d) tiles.push([`${d.n} 路同时解码`, fmt(d.overlap?.throughput, 1), d.overlap ? `tok/s · 共同窗口 ${fmtS(d.overlap.windowMs)}` : '需要共同窗口和逐块用量', 'c1', 'light']);
+    if (ping) tiles.push([translate('响应延迟'), fmt(ping.min, 0), 'ms', 'z1', '']);
+    if (p) tiles.push([translate('读取速度'), fmt(p.throughput, 1), p.throughput == null ? translate('整轮输入用量不完整') : translate('tok/s · 首包前有效输入吞吐'), 'z2', '']);
+    if (s) tiles.push([translate('单发峰值'), fmt(s.peak, 1), s.peak == null ? translate('需逐块用量与完整 2 秒窗口') : translate('tok/s · 固定 2 秒窗口'), 'z3', 'light']);
+    if (d) tiles.push([translate`${d.n} 路同时解码`, fmt(d.overlap?.throughput, 1), d.overlap ? translate`tok/s · 共同窗口 ${fmtS(d.overlap.windowMs)}` : translate('需要共同窗口和逐块用量'), 'c1', 'light']);
     const [ri, rname] = mainRating();
     const best = bestOf(cfg);
     let sub = '';
-    if (S.demo) sub = '演示数据';
-    else if (s?.peak != null && best == null) sub = '首次测试';
-    else if (s?.peak != null && s.peak > best) sub = '本机新纪录';
-    else if (s?.peak != null) sub = `本机最佳 ${fmt(best, 1)}`;
+    if (S.demo) sub = translate('演示数据');
+    else if (s?.peak != null && best == null) sub = translate('首次测试');
+    else if (s?.peak != null && s.peak > best) sub = translate('本机新纪录');
+    else if (s?.peak != null) sub = translate`本机最佳 ${fmt(best, 1)}`;
     $('#rTop').innerHTML = tiles.map(([k, v, u, c, cls]) => `<div class="r-tile ${cls}" style="--rc:var(--${c})"><span>${k}</span><b>${v}</b><small>${u}</small></div>`).join('');
     $('#rStampSlot').innerHTML = ri ? `<div class="r-stamp" id="rStamp"><div><b>${rname}</b><span>${sub}</span></div></div>` : '';
 
     const parts = [];
-    if (s?.byUser || d?.byUser) parts.push('生成阶段提前结束');
-    if (d?.overlap) parts.push(`${d.n} 路共同解码期间共输出 <b>${fmt(d.overlap.tokens, 0)}</b> tokens`);
-    if (p) parts.push(`读取测试平均首包 <b>${fmtS(p.ttft.avg)}</b>`);
-    if (d && d.cacheHitRate != null) parts.push(`前缀缓存命中 ${(d.cacheHitRate * 100).toFixed(0)}%`);
-    if (S.error && S.error !== '已停止') parts.push(`<span class="err">测试未全部完成：${esc(S.error)}</span>`);
-    else if (S.error) parts.push('测试已手动停止');
+    if (s?.byUser || d?.byUser) parts.push(translate('生成阶段提前结束'));
+    if (d?.overlap) parts.push(translate`${d.n} 路共同解码期间共输出 <b>${fmt(d.overlap.tokens, 0)}</b> tokens`);
+    if (p) parts.push(translate`读取测试平均首包 <b>${fmtS(p.ttft.avg)}</b>`);
+    if (d && d.cacheHitRate != null) parts.push(translate`前缀缓存命中 ${(d.cacheHitRate * 100).toFixed(0)}%`);
+    if (S.error && S.error !== translate('已停止')) parts.push(`<span class="err">${translate`测试未全部完成：${esc(S.error)}`}</span>`);
+    else if (S.error) parts.push(translate('测试已手动停止'));
     $('#verdict').innerHTML = parts.join('；') + (parts.length ? '。' : '');
     syncRankingAction();
 
@@ -1251,49 +1252,49 @@
     if (bars.length >= 2) {
       const mx = Math.max(...bars.map((l) => l.speed));
       $('#rBars').innerHTML = bars
-        .map((l) => `<div class="rb${l.speed === mx ? ' win' : ''}" style="--lc:${laneVar(l.i)}"><span>${esc(l.domain)}</span><i><b data-w="${((l.speed / mx) * 100).toFixed(1)}"></b></i><em>${fmt(l.speed, 1)}</em></div>`)
+        .map((l) => `<div class="rb${l.speed === mx ? ' win' : ''}" style="--lc:${laneVar(l.i)}"><span>${esc(translate(l.domain))}</span><i><b data-w="${((l.speed / mx) * 100).toFixed(1)}"></b></i><em>${fmt(l.speed, 1)}</em></div>`)
         .join('');
     }
 
     const rows = [];
     const r = (k, v, cls) => rows.push(`<div class="d-row ${cls || ''}"><span>${k}</span><b>${v}</b></div>`);
-    r('模型', esc(cfg.model));
-    r('服务', esc(host(cfg.baseUrl)));
-    if (S.direct) r('请求路径', '浏览器直连本机');
-    if (cfg.thinkingMode !== 'default') r('思考模式', thinkingLabels[cfg.thinkingMode]);
+    r(translate('模型'), esc(cfg.model));
+    r(translate('服务'), esc(host(cfg.baseUrl)));
+    if (S.direct) r(translate('请求路径'), translate('浏览器直连本机'));
+    if (cfg.thinkingMode !== 'default') r(translate('思考模式'), thinkingLabels[cfg.thinkingMode]);
     if (ping) {
-      r('延迟 最快 / 平均', `${fmt(ping.min, 0)} / ${fmt(ping.avg, 0)} 毫秒`);
-      r('延迟抖动', `${fmt(ping.jitter, 0)} 毫秒`);
+      r(translate('延迟 最快 / 平均'), translate`${fmt(ping.min, 0)} / ${fmt(ping.avg, 0)} 毫秒`);
+      r(translate('延迟抖动'), translate`${fmt(ping.jitter, 0)} 毫秒`);
     }
     if (p) {
-      r('读取 完成路数', `${p.ok} / ${p.ok + p.failed}`);
-      r('每路输入用量范围', p.minPromptTokens == null ? '不可用' : `${fmt(p.minPromptTokens, 0)}–${fmt(p.maxPromptTokens, 0)} tokens`);
-      r('读取 有效输入吞吐（含缓存）', fmtRate(p.throughput));
-      r('读取 已命中缓存', p.cachedTokens == null ? '不可用' : `${fmt(p.cachedTokens, 0)} tokens`);
-      r('读取 单路平均（含排队）', fmtRate(p.avgSpeed));
-      r('读取 首包平均 / 最慢', `${fmtS(p.ttft.avg)} / ${fmtS(p.ttft.max)}`);
-      if (p.failed) r('读取失败', `${p.failed} 路`, 'err');
+      r(translate('读取 完成路数'), `${p.ok} / ${p.ok + p.failed}`);
+      r(translate('每路输入用量范围'), p.minPromptTokens == null ? translate('不可用') : `${fmt(p.minPromptTokens, 0)}–${fmt(p.maxPromptTokens, 0)} tokens`);
+      r(translate('读取 有效输入吞吐（含缓存）'), fmtRate(p.throughput));
+      r(translate('读取 已命中缓存'), p.cachedTokens == null ? translate('不可用') : `${fmt(p.cachedTokens, 0)} tokens`);
+      r(translate('读取 单路平均（含排队）'), fmtRate(p.avgSpeed));
+      r(translate('读取 首包平均 / 最慢'), `${fmtS(p.ttft.avg)} / ${fmtS(p.ttft.max)}`);
+      if (p.failed) r(translate('读取失败'), translate`${p.failed} 路`, 'err');
     }
     if (s) {
-      r('单发 峰值（固定 2 秒）', fmtRate(s.peak));
-      r('单发 解码平均', fmtRate(s.speed));
-      r('单发 端到端输出吞吐', fmtRate(s.e2eSpeed));
-      r('单发 首包 / 输出用量', `${fmtS(s.ttft)} / ${fmt(s.tokens, 0)} tokens`);
-      if (s.chunkGap) r('单发 输出块间隔 P50 / P99', `${fmt(s.chunkGap.p50, 1)} / ${fmt(s.chunkGap.p99, 1)} 毫秒`);
+      r(translate('单发 峰值（固定 2 秒）'), fmtRate(s.peak));
+      r(translate('单发 解码平均'), fmtRate(s.speed));
+      r(translate('单发 端到端输出吞吐'), fmtRate(s.e2eSpeed));
+      r(translate('单发 首包 / 输出用量'), `${fmtS(s.ttft)} / ${fmt(s.tokens, 0)} tokens`);
+      if (s.chunkGap) r(translate('单发 输出块间隔 P50 / P99'), translate`${fmt(s.chunkGap.p50, 1)} / ${fmt(s.chunkGap.p99, 1)} 毫秒`);
     }
     if (d) {
-      r(`${d.n} 路同时解码吞吐`, fmtRate(d.overlap?.throughput));
-      if (d.overlap) r('共同解码窗口 / 输出量', `${fmtS(d.overlap.windowMs)} / ${fmt(d.overlap.tokens, 0)} tokens`);
-      r('并发 端到端输出吞吐', fmtRate(d.throughput));
-      r('各路解码速率平均（最慢~最快）', d.avgSpeed == null ? '不可用' : `${fmtRate(d.avgSpeed)}（${fmt(d.minSpeed, 1)}–${fmt(d.maxSpeed, 1)}）`);
-      r('并发 平均首包', fmtS(d.ttft && d.ttft.avg));
-      r('缓存命中率', d.cacheHitRate != null ? `${(d.cacheHitRate * 100).toFixed(1)}%` : '服务未返回');
-      if (d.chunkGap) r('并发 输出块间隔 P50 / P99', `${fmt(d.chunkGap.p50, 1)} / ${fmt(d.chunkGap.p99, 1)} 毫秒`);
-      r('并发用时 / 总生成', `${(d.windowMs / 1000).toFixed(1)} 秒 / ${fmt(d.totalTokens, 0)} tokens`);
-      if (d.failed) r('并发失败', `${d.failed} 路`, 'err');
+      r(translate`${d.n} 路同时解码吞吐`, fmtRate(d.overlap?.throughput));
+      if (d.overlap) r(translate('共同解码窗口 / 输出量'), `${fmtS(d.overlap.windowMs)} / ${fmt(d.overlap.tokens, 0)} tokens`);
+      r(translate('并发 端到端输出吞吐'), fmtRate(d.throughput));
+      r(translate('各路解码速率平均（最慢~最快）'), d.avgSpeed == null ? translate('不可用') : `${fmtRate(d.avgSpeed)}（${fmt(d.minSpeed, 1)}–${fmt(d.maxSpeed, 1)}）`);
+      r(translate('并发 平均首包'), fmtS(d.ttft && d.ttft.avg));
+      r(translate('缓存命中率'), d.cacheHitRate != null ? `${(d.cacheHitRate * 100).toFixed(1)}%` : translate('服务未返回'));
+      if (d.chunkGap) r(translate('并发 输出块间隔 P50 / P99'), translate`${fmt(d.chunkGap.p50, 1)} / ${fmt(d.chunkGap.p99, 1)} 毫秒`);
+      r(translate('并发用时 / 总生成'), translate`${(d.windowMs / 1000).toFixed(1)} 秒 / ${fmt(d.totalTokens, 0)} tokens`);
+      if (d.failed) r(translate('并发失败'), translate`${d.failed} 路`, 'err');
     }
     const errs = [].concat((p && p.errors) || [], (d && d.errors) || []);
-    if (errs.length) r('错误信息', esc(errs[0]), 'err');
+    if (errs.length) r(translate('错误信息'), esc(localizeError(errs[0])), 'err');
     $('#dTable').innerHTML = rows.join('');
     $('#result').hidden = false;
 
@@ -1319,13 +1320,13 @@
   // ---------------- 分享 / 复制
   function resultText() {
     const { ping, prefill: p, single: s, decode: d, cfg } = S;
-    const L = [`【TokenSpeed 大模型 API 测速】`, `模型：${cfg.model}（${host(cfg.baseUrl)}）`];
-    if (ping) L.push(`响应延迟：${fmt(ping.min, 0)} 毫秒`);
-    if (p) L.push(`首包前有效输入吞吐：${fmtRate(p.throughput)}`);
-    if (s) L.push(`单发 2 秒峰值：${fmtRate(s.peak)}，解码平均 ${fmtRate(s.speed)}，端到端吞吐 ${fmtRate(s.e2eSpeed)}${s.byUser ? '（提前结束）' : ''}`);
+    const L = [translate`【TokenSpeed 大模型 API 测速】`, translate`模型：${cfg.model}（${host(cfg.baseUrl)}）`];
+    if (ping) L.push(translate`响应延迟：${fmt(ping.min, 0)} 毫秒`);
+    if (p) L.push(translate`首包前有效输入吞吐：${fmtRate(p.throughput)}`);
+    if (s) L.push(translate`单发 2 秒峰值：${fmtRate(s.peak)}，解码平均 ${fmtRate(s.speed)}，端到端吞吐 ${fmtRate(s.e2eSpeed)}${s.byUser ? translate('（提前结束）') : ''}`);
     if (d) {
-      L.push(`${d.n} 路同时解码：${fmtRate(d.overlap?.throughput)}${d.overlap ? `（共同窗口 ${fmtS(d.overlap.windowMs)}）` : ''}`);
-      L.push(`整轮端到端输出吞吐：${fmtRate(d.throughput)}${d.byUser ? '（提前结束）' : ''}`);
+      L.push(translate`${d.n} 路同时解码：${fmtRate(d.overlap?.throughput)}${d.overlap ? translate`（共同窗口 ${fmtS(d.overlap.windowMs)}）` : ''}`);
+      L.push(translate`整轮端到端输出吞吐：${fmtRate(d.throughput)}${d.byUser ? translate('（提前结束）') : ''}`);
     }
     return L.join('\n');
   }
@@ -1355,10 +1356,10 @@
   function shareImage() {
     const { ping, prefill: p, single: s, decode: d, cfg } = S;
     const items = [];
-    if (ping) items.push(['响应延迟', fmt(ping.min, 0), 'ms', COL.z1, COL.ink]);
-    if (p) items.push(['有效输入吞吐', fmt(p.throughput, 1), p.throughput == null ? '不可用' : 'tok/s', COL.z2, COL.ink]);
-    if (s) items.push([s.byUser ? '单发峰值（提前结束）' : '单发 2 秒峰值', fmt(s.peak, 1), s.peak == null ? '不可用' : 'tok/s', COL.z3, '#fff']);
-    if (d) items.push([`${d.n} 路同时解码`, fmt(d.overlap?.throughput, 1), d.overlap ? 'tok/s' : '不可用', COL.c1, '#fff']);
+    if (ping) items.push([translate('响应延迟'), fmt(ping.min, 0), 'ms', COL.z1, COL.ink]);
+    if (p) items.push([translate('有效输入吞吐'), fmt(p.throughput, 1), p.throughput == null ? translate('不可用') : 'tok/s', COL.z2, COL.ink]);
+    if (s) items.push([s.byUser ? translate('单发峰值（提前结束）') : translate('单发 2 秒峰值'), fmt(s.peak, 1), s.peak == null ? translate('不可用') : 'tok/s', COL.z3, '#fff']);
+    if (d) items.push([translate`${d.n} 路同时解码`, fmt(d.overlap?.throughput, 1), d.overlap ? 'tok/s' : translate('不可用'), COL.c1, '#fff']);
     const bars = d ? d.lanes.filter((l) => l.ok && l.speed) : [];
     const tw = (1080 - 160 - 30) / 2, th = 200, rowH = 50;
     // 先排版再定画布高度，行数多时整张图变长，元素不挤在一起
@@ -1388,7 +1389,7 @@
     c.fillText('TokenSpeed', 80, 130);
     c.font = font(700, 28);
     c.fillStyle = COL.muted;
-    c.fillText('大模型 API 测速报告', 80, 176);
+    c.fillText(translate('大模型 API 测速报告'), 80, 176);
     c.fillStyle = COL.ink;
     c.font = font(900, 60);
     let model = cfg.model;
@@ -1396,14 +1397,14 @@
     c.fillText(model === cfg.model ? model : model + '…', 80, 290);
     c.font = font(600, 28);
     c.fillStyle = COL.muted;
-    c.fillText(`${host(cfg.baseUrl)} · ${new Date().toLocaleString()}`, 80, 338);
+    c.fillText(`${host(cfg.baseUrl)} · ${new Date().toLocaleString(language)}`, 80, 338);
 
     items.forEach((it, i) => {
       const x = 80 + (i % 2) * (tw + 30), y = 400 + Math.floor(i / 2) * (th + 34);
       flatBox(c, x, y, tw, th, 28, it[3]);
       c.fillStyle = it[4];
       c.font = font(800, 30);
-      c.fillText(it[0], x + 30, y + 56);
+      c.fillText(it[0], x + 30, y + 56, tw - 60);
       c.font = font(900, 84);
       const maxValueWidth = tw - 180;
       const valueWidth = c.measureText(it[1]).width;
@@ -1432,7 +1433,7 @@
       c.fillStyle = '#fff';
       c.textAlign = 'center';
       c.font = font(900, rname.length > 2 ? 36 : 46);
-      c.fillText(rname, 0, rname.length > 2 ? 13 : 16);
+      c.fillText(rname, 0, rname.length > 2 ? 13 : 16, 108);
       c.restore();
       c.textAlign = 'left';
     }
@@ -1440,13 +1441,13 @@
     if (bars.length >= 2) {
       c.fillStyle = COL.ink;
       c.font = font(800, 30);
-      c.fillText('各领域单路速度（tok/s）', 80, y0 + 20);
+      c.fillText(translate('各领域单路速度（tok/s）'), 80, y0 + 20);
       const mx = Math.max(...bars.map((l) => l.speed));
       bars.forEach((l, i) => {
         const y = y0 + 50 + i * rowH;
         c.font = font(700, 24);
         c.fillStyle = COL.ink;
-        c.fillText(l.domain, 80, y + 26);
+        c.fillText(translate(l.domain), 80, y + 26);
         const bx = 270, bw = W - 80 - bx - 110;
         rr(c, bx, y + 6, bw, 26, 8);
         c.fillStyle = COL.tint;
@@ -1466,14 +1467,14 @@
     }
     c.fillStyle = COL.muted;
     c.font = font(600, 22);
-    c.fillText(`测试方法：${d ? d.n : cfg.concurrency} 路 × ${fmtTok(cfg.contextTokens)} 领域资料，读取后复用前缀并发生成`, 80, H - 60);
+    c.fillText(translate`测试方法：${d ? d.n : cfg.concurrency} 路 × ${fmtTok(cfg.contextTokens)} 领域资料，读取后复用前缀并发生成`, 80, H - 60, 920);
     cv.toBlob((b) => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(b);
       a.download = `TokenSpeed-${cfg.model.replace(/[^\w.-]+/g, '_')}.png`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-      toast('分享图已保存');
+      toast(translate('分享图已保存'));
     });
   }
 
@@ -1493,15 +1494,15 @@
     $('#hist').innerHTML = h.length
       ? h
           .map(
-            (x) => `<div class="h-item"><div class="h-top"><b>${esc(x.model)}</b><span>${new Date(x.t).toLocaleString()}</span></div>
-            <div class="h-host">${esc(x.host)}${thinkingLabels[x.thinkingMode] && x.thinkingMode !== 'default' ? ' · 思考' + thinkingLabels[x.thinkingMode] : ''}${x.metricsVersion === 2 ? '' : ' · 旧版统计口径'}</div>
-            <div class="h-vals"><div>延迟<b>${x.ping != null ? fmt(x.ping, 0) : '—'}</b></div>
-            <div>读取<b>${fmt(x.prefill, 1)}</b></div>
-            <div>峰值<b>${x.single != null ? fmt(x.single, 1) : '—'}</b></div>
-            <div>${Object.hasOwn(x, 'decodeOverlap') ? '同时解码' : '并发整轮'}<b>${fmt(Object.hasOwn(x, 'decodeOverlap') ? x.decodeOverlap : x.decode, 1)}</b></div></div></div>`
+            (x) => `<div class="h-item"><div class="h-top"><b>${esc(x.model)}</b><span>${new Date(x.t).toLocaleString(language)}</span></div>
+            <div class="h-host">${esc(x.host)}${thinkingLabels[x.thinkingMode] && x.thinkingMode !== 'default' ? translate(' · 思考') + thinkingLabels[x.thinkingMode] : ''}${x.metricsVersion === 2 ? '' : translate(' · 旧版统计口径')}</div>
+            <div class="h-vals"><div>${translate('延迟')}<b>${x.ping != null ? fmt(x.ping, 0) : '—'}</b></div>
+            <div>${translate('读取')}<b>${fmt(x.prefill, 1)}</b></div>
+            <div>${translate('峰值')}<b>${x.single != null ? fmt(x.single, 1) : '—'}</b></div>
+            <div>${Object.hasOwn(x, 'decodeOverlap') ? translate('同时解码') : translate('并发整轮')}<b>${fmt(Object.hasOwn(x, 'decodeOverlap') ? x.decodeOverlap : x.decode, 1)}</b></div></div></div>`
           )
           .join('')
-      : '<div class="h-empty">还没有测速记录</div>';
+      : `<div class="h-empty">${translate('还没有测速记录')}</div>`;
   }
 
   const board = $('#rankings');
@@ -1529,7 +1530,7 @@
     const status = $('#rankingsStatus');
     const table = $('#rankingsTable');
     table.hidden = true;
-    status.textContent = '正在读取榜单…';
+    status.textContent = translate('正在读取榜单…');
     try {
       const response = await fetch('./api/rankings?sort=' + encodeURIComponent($('#rankingSort').value), { signal: request.signal });
       if (!response.ok) throw new Error();
@@ -1542,9 +1543,9 @@
         <td>${fmt(entry.prefill, 1)}</td><td>${fmt(entry.peak, 1)}</td><td>${fmt(entry.decode, 1)}</td>
       </tr>`).join('');
       table.hidden = !entries.length;
-      status.textContent = entries.length ? '' : '还没有公开成绩。';
+      status.textContent = entries.length ? '' : translate('还没有公开成绩。');
     } catch (_) {
-      if (!request.signal.aborted) status.textContent = '榜单暂时无法读取，请稍后重试。';
+      if (!request.signal.aborted) status.textContent = translate('榜单暂时无法读取，请稍后重试。');
     }
   }
 
@@ -1589,7 +1590,7 @@
     const cancel = $('#btnCancelRanking');
     const status = $('#rankSubmitStatus');
     confirm.disabled = cancel.disabled = true;
-    status.textContent = '正在提交…';
+    status.textContent = translate('正在提交…');
     try {
       const response = await fetch('./api/rankings', {
         method: 'POST',
@@ -1597,18 +1598,18 @@
         body: JSON.stringify({ model: S.cfg.model, device: $('#rankDevice').value, framework: $('#rankFramework').value, scores }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || '提交失败');
+      if (!response.ok) throw new Error(result.error || translate('提交失败'));
       if (result.status === 'below_limit') {
-        status.textContent = '本次综合分未进入榜单。';
+        status.textContent = translate('本次综合分未进入榜单。');
         return;
       }
       S.rankingSubmitted = true;
       syncRankingAction();
       publishDialog.close();
-      toast(result.status === 'kept' ? '榜单保留该组合的更高成绩' : '成绩已公开');
+      toast(result.status === 'kept' ? translate('榜单保留该组合的更高成绩') : translate('成绩已公开'));
       showRankings();
     } catch (error) {
-      status.textContent = error.message || '提交失败，请稍后重试。';
+      status.textContent = localizeError(error.message) || translate('提交失败，请稍后重试。');
     } finally {
       confirm.disabled = cancel.disabled = false;
     }
@@ -1623,14 +1624,14 @@
   $('#btnCopy').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(resultText());
-      toast('已复制，可以直接粘贴分享');
+      toast(translate('已复制，可以直接粘贴分享'));
     } catch (_) {
-      toast('复制失败，请手动选择文字', true);
+      toast(translate('复制失败，请手动选择文字'), true);
     }
   });
   $('#btnStop').addEventListener('click', () => {
     if (S.runId) fetch('./api/stop', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: S.runId }) }).catch(() => {});
-    S.error = '已停止';
+    S.error = translate('已停止');
     S.ctrl && S.ctrl.abort();
   });
   $('#btnEndDecode').addEventListener('click', () => {

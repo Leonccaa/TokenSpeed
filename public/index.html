@@ -34,8 +34,8 @@
     <section class="view" id="viewSetup">
       <div class="hero">
         <i class="deco d1"></i><i class="deco d2"></i><i class="deco d3"></i><i class="deco d4"></i>
-        <h1>你的大模型 API<br />到底有<em>多快</em>？</h1>
-        <p>填入 API Key，一键测出 <b>响应延迟</b>、<b>读取速度</b>、<b>峰值速度</b> 和 <b>并发速度</b></p>
+        <h1 data-i18n-html="heroTitle">你的大模型 API<br />到底有<em>多快</em>？</h1>
+        <p data-i18n-html="heroSubtitle">填入 API Key，一键测出 <b>响应延迟</b>、<b>读取速度</b>、<b>峰值速度</b> 和 <b>并发速度</b></p>
       </div>
 
       <div class="card setup">
@@ -212,7 +212,7 @@
         <h3>历史记录</h3>
         <div>
           <button class="link" id="btnClearHist" type="button">清空</button>
-          <button class="nav-btn icon" data-close type="button" aria-label="关闭"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
+          <button class="nav-btn icon" data-close type="button" aria-label="关闭历史记录"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
         </div>
       </div>
       <div class="hist" id="hist"></div>
@@ -272,6 +272,7 @@
   </dialog>
 
   <div class="toast" id="toast" role="status"></div>
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
