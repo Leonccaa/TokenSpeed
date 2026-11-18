@@ -39,7 +39,9 @@
   };
   const fmtK = (v) => (v == null ? '—' : v >= 1000 ? +(v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'K' : String(Math.round(v)));
   const fmtTok = (v) => (v == null ? '—' : v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1000 ? +(v / 1000).toFixed(1) + 'K' : String(Math.round(v || 0)));
-  const fmtRate = (v) => (v == null ? translate('不可用') : `${fmt(v, 1)} tok/s`);
+  const fmtMeasured = (value, estimate) => value == null && estimate != null ? '≈' + fmt(estimate, 1) : fmt(value, 1);
+  const fmtRate = (value, estimate) => value == null && estimate == null
+    ? translate('不可用') : `${fmtMeasured(value, estimate)} tok/s`;
   let fmtUsage = new Intl.NumberFormat(locale.language, { notation: 'compact', maximumFractionDigits: 1 });
   const fmtS = (ms) => (ms == null ? '—' : ms >= 1000 ? (ms / 1000).toFixed(2) + translate(' 秒') : Math.round(ms) + translate(' 毫秒'));
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -734,8 +736,8 @@
   }
 
   function stepLabel(stage) {
-    if (stage === 'single' && S.single && singleMetric(S.single).fallback) return translate('单发端到端');
-    if (stage === 'decode' && S.decode && decodeMetric(S.decode).fallback) return translate('并发端到端');
+    if (stage === 'single' && S.single) return singleMetric(S.single).step;
+    if (stage === 'decode' && S.decode) return decodeMetric(S.decode).step;
     return translate(STAGE[stage].name);
   }
 
@@ -1053,7 +1055,7 @@
   }
 
   function laneSpeed(L, t) {
-    if (L.final) return L.final.speed || 0;
+    if (L.final) return L.final.speed ?? L.final.speedEstimate ?? 0;
     if (L.tFirst == null) return 0;
     const dt = (t - L.tFirst) / 1000;
     return dt > 0.4 ? Math.max(0, L.tok - L.firstCount) / dt : 0;
@@ -1081,9 +1083,9 @@
 
   function renderLaneRate(L) {
     const ev = L.final;
-    html(L.em, ev.speed == null && ev.e2eSpeed != null
+    html(L.em, ev.speed == null && ev.speedEstimate == null && ev.e2eSpeed != null
       ? `${fmt(ev.e2eSpeed, 1)}<small>${translate('端到端 tok/s')}</small>`
-      : fmtRate(ev.speed));
+      : fmtRate(ev.speed, ev.speedEstimate));
   }
 
   function finalizeLane(L, ev) {
@@ -1113,10 +1115,10 @@
     punch($('#gNum'), 1.2);
     SFX.stamp();
     $('#gK').textContent = translate('单发峰值速度 · 最快 2 秒');
-    html($('#gSub'), translate`解码平均 ${fmtRate(ev.speed)}${ev.byUser ? translate('（提前结束）') : ''}`);
+    html($('#gSub'), translate`解码平均 ${fmtRate(ev.speed, ev.speedEstimate)}${ev.byUser ? translate('（提前结束）') : ''}`);
     const metric = singleMetric(ev);
     $('.step[data-s="single"] span').textContent = stepLabel('single');
-    setStep('single', 'done', fmt(metric.value, 1), 'tok/s');
+    setStep('single', 'done', fmtMeasured(metric.value, metric.estimate), 'tok/s');
     $('#btnEndDecode').hidden = true;
   }
 
@@ -1140,11 +1142,11 @@
     SFX.boom();
     $('#btnEndDecode').hidden = true;
     $('#gK').textContent = translate`${ev.n} 路同时解码`;
-    html($('#gSub'), ev.overlap ? translate`共同解码窗口 ${fmtS(ev.overlap.windowMs)}` : translate('需要共同解码窗口和逐块累计用量'));
     const metric = decodeMetric(ev);
+    html($('#gSub'), metric.note);
     $('.step[data-s="decode"] span').textContent = stepLabel('decode');
-    setStep('decode', 'done', fmt(metric.value, 1), 'tok/s');
-    const best = ev.lanes.filter((l) => l.ok && l.speed).sort((a, b) => b.speed - a.speed)[0];
+    setStep('decode', 'done', fmtMeasured(metric.value, metric.estimate), 'tok/s');
+    const best = decodeBars(ev).sort((a, b) => b.speed - a.speed)[0];
     if (best && V.lanes[best.i]) {
       const W = V.lanes[best.i].el;
       W.classList.add('win');
@@ -1155,7 +1157,7 @@
     b.hidden = false;
     b.innerHTML = `<span class="flag"></span><span>${
       ev.byUser ? translate('已提前结束，并发吞吐成绩不可用。') : translate`${ev.ok} / ${ev.n} 路完成，整轮用时 ${fmtS(ev.windowMs)}。`
-    }${best ? translate` 最快的是 <b>#${best.i + 1} ${esc(translate(best.domain))}</b>，${fmt(best.speed, 1)} tok/s。` : ''}</span>`;
+    }${best ? translate` 最快的是 <b>#${best.i + 1} ${esc(translate(best.domain))}</b>，${barSpeed(best)} tok/s。` : ''}</span>`;
     anim(b, [{ transform: 'translateY(-14px) scale(.95)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 380, easing: 'cubic-bezier(.3,1.5,.5,1)' });
   }
 
@@ -1229,7 +1231,7 @@
     } else if (V.stage === 'single') {
       const L = V.lanes[0], R = S.single;
       const ttft = R ? R.ttft : L && L.tFirst != null ? L.tFirst - V.t0 : null;
-      html(el, kv(translate('首包时间'), ttft != null ? (R ? '' : '≈') + (ttft / 1000).toFixed(2) : '—', 's') + kv(R ? translate('解码平均') : translate('实时峰值估算'), R ? fmt(R.speed, 1) : V.peak ? fmt(V.peak, 1) : '—', 'tok/s') + kv(translate('已生成'), R ? fmt(R.tokens, 0) : '≈' + fmtTok(V.total || 0), 'tokens') + kv(translate('用时'), ((R ? R.wallMs : t - V.t0) / 1000).toFixed(1), 's'));
+      html(el, kv(translate('首包时间'), ttft != null ? (R ? '' : '≈') + (ttft / 1000).toFixed(2) : '—', 's') + kv(R ? translate('解码平均') : translate('实时峰值估算'), R ? fmtMeasured(R.speed, R.speedEstimate) : V.peak ? fmt(V.peak, 1) : '—', 'tok/s') + kv(translate('已生成'), R ? fmt(R.tokens, 0) : '≈' + fmtTok(V.total || 0), 'tokens') + kv(translate('用时'), ((R ? R.wallMs : t - V.t0) / 1000).toFixed(1), 's'));
     } else if (V.stage === 'decode') {
       const R = S.decode;
       html(
@@ -1259,24 +1261,39 @@
   }
 
   function singleMetric(s) {
-    if (s.peak == null && s.e2eSpeed != null) {
-      return { fallback: true, title: translate('单发端到端吞吐'), value: s.e2eSpeed, note: translate('tok/s · 含首包等待') };
+    if (s.peak != null || s.peakEstimate != null) {
+      return { title: translate('单发峰值'), step: translate('峰值'), value: s.peak, estimate: s.peakEstimate,
+        note: s.peak == null ? translate('估算 · 固定 2 秒窗口') : translate('tok/s · 固定 2 秒窗口') };
     }
-    return {
-      fallback: false, title: translate('单发峰值'), value: s.peak,
-      note: s.peak == null ? translate('需逐块用量与完整 2 秒窗口') : translate('tok/s · 固定 2 秒窗口'),
-    };
+    if (s.speed != null || s.speedEstimate != null) {
+      return { title: translate('单发解码平均'), step: translate('单发均速'), value: s.speed, estimate: s.speedEstimate,
+        note: s.speed == null ? translate('估算 · 无完整 2 秒窗口') : translate('tok/s · 无完整 2 秒窗口') };
+    }
+    if (s.e2eSpeed != null) {
+      return { title: translate('单发端到端吞吐'), step: translate('单发端到端'), value: s.e2eSpeed, note: translate('tok/s · 含首包等待') };
+    }
+    return { title: translate('单发峰值'), step: translate('峰值'), note: translate('需逐块用量与完整 2 秒窗口') };
   }
 
   function decodeMetric(d) {
-    if (!d.overlap && d.throughput != null) {
-      return { fallback: true, title: translate`${d.n} 路端到端吞吐`, value: d.throughput, note: translate('tok/s · 整轮用时') };
+    const window = d.overlap ?? d.overlapEstimate;
+    if (window) {
+      return { title: translate`${d.n} 路同时解码`, step: translate('并发'), value: d.overlap?.throughput,
+        estimate: d.overlapEstimate?.throughput,
+        note: d.overlap ? translate`tok/s · 共同窗口 ${fmtS(window.windowMs)}` : translate`估算 · 共同窗口 ${fmtS(window.windowMs)}` };
     }
-    return {
-      fallback: false, title: translate`${d.n} 路同时解码`, value: d.overlap?.throughput,
-      note: d.overlap ? translate`tok/s · 共同窗口 ${fmtS(d.overlap.windowMs)}` : translate('需要共同窗口和逐块用量'),
-    };
+    if (d.throughput != null) {
+      return { title: translate`${d.n} 路端到端吞吐`, step: translate('并发端到端'), value: d.throughput, note: translate('tok/s · 整轮用时') };
+    }
+    return { title: translate`${d.n} 路同时解码`, step: translate('并发'), note: translate('需要共同窗口和逐块用量') };
   }
+
+  function decodeBars(d) {
+    return (d?.lanes ?? []).filter(lane => lane.ok && (lane.speed ?? lane.speedEstimate) > 0)
+      .map(lane => ({ ...lane, speed: lane.speed ?? lane.speedEstimate, estimated: lane.speed == null }));
+  }
+
+  const barSpeed = lane => (lane.estimated ? '≈' : '') + fmt(lane.speed, 1);
 
   function renderResult() {
     const { ping, prefill: p, single: s, decode: d, cfg } = S;
@@ -1289,8 +1306,8 @@
     if (p) tiles.push([translate('读取速度'), fmt(p.throughput, 1), p.throughput == null ? translate('整轮输入用量不完整') : translate('tok/s · 首包前有效输入吞吐'), 'z2', '']);
     const single = s && singleMetric(s);
     const decode = d && decodeMetric(d);
-    if (single) tiles.push([single.title, fmt(single.value, 1), single.note, 'z3', 'light']);
-    if (decode) tiles.push([decode.title, fmt(decode.value, 1), decode.note, 'c1', 'light']);
+    if (single) tiles.push([single.title, fmtMeasured(single.value, single.estimate), single.note, 'z3', 'light']);
+    if (decode) tiles.push([decode.title, fmtMeasured(decode.value, decode.estimate), decode.note, 'c1', 'light']);
     const [ri, rname] = mainRating();
     const best = S.previousBest;
     let sub = '';
@@ -1306,18 +1323,18 @@
     if (d?.overlap) parts.push(translate`${d.n} 路共同解码期间共输出 <b>${fmt(d.overlap.tokens, 0)}</b> tokens`);
     if (p) parts.push(translate`读取测试平均首包 <b>${fmtS(p.ttft.avg)}</b>`);
     if (d && d.cacheHitRate != null) parts.push(translate`前缀缓存命中 ${(d.cacheHitRate * 100).toFixed(0)}%`);
-    if (single?.fallback || decode?.fallback) parts.push(translate('精确峰值需逐块用量和完整 2 秒窗口，同时解码吞吐还需共同窗口'));
+    if (single?.estimate != null || decode?.estimate != null) parts.push(translate('≈ 表示按输出文本和到达时间估算'));
     if (S.error && S.error !== '已停止') parts.push(`<span class="err">${translate`测试未全部完成：${esc(localizeError(S.error))}`}</span>`);
     else if (S.error) parts.push(translate('测试已手动停止'));
     $('#verdict').innerHTML = parts.join('；') + (parts.length ? '。' : '');
     syncRankingAction();
 
-    const bars = d ? d.lanes.filter((l) => l.ok && l.speed) : [];
+    const bars = decodeBars(d);
     $('#rBarsCard').hidden = bars.length < 2;
     if (bars.length >= 2) {
       const mx = Math.max(...bars.map((l) => l.speed));
       $('#rBars').innerHTML = bars
-        .map((l) => `<div class="rb${l.speed === mx ? ' win' : ''}" style="--lc:${laneVar(l.i)}"><span>${esc(translate(l.domain))}</span><i><b data-w="${((l.speed / mx) * 100).toFixed(1)}"></b></i><em>${fmt(l.speed, 1)}</em></div>`)
+        .map((l) => `<div class="rb${l.speed === mx ? ' win' : ''}" style="--lc:${laneVar(l.i)}"><span>${esc(translate(l.domain))}</span><i><b data-w="${((l.speed / mx) * 100).toFixed(1)}"></b></i><em>${barSpeed(l)}</em></div>`)
         .join('');
     }
 
@@ -1341,17 +1358,22 @@
       if (p.failed) r(translate('读取失败'), translate`${p.failed} 路`, 'err');
     }
     if (s) {
-      r(translate('单发 峰值（固定 2 秒）'), fmtRate(s.peak));
-      r(translate('单发 解码平均'), fmtRate(s.speed));
+      r(translate('单发 峰值（固定 2 秒）'), fmtRate(s.peak, s.peakEstimate));
+      r(translate('单发 解码平均'), fmtRate(s.speed, s.speedEstimate));
       r(translate('单发 端到端输出吞吐'), fmtRate(s.e2eSpeed));
       r(translate('单发 首包 / 输出用量'), `${fmtS(s.ttft)} / ${fmt(s.tokens, 0)} tokens`);
       if (s.chunkGap) r(translate('单发 输出块间隔 P50 / P99'), translate`${fmt(s.chunkGap.p50, 1)} / ${fmt(s.chunkGap.p99, 1)} 毫秒`);
     }
     if (d) {
-      r(translate`${d.n} 路同时解码吞吐`, fmtRate(d.overlap?.throughput));
-      if (d.overlap) r(translate('共同解码窗口 / 输出量'), `${fmtS(d.overlap.windowMs)} / ${fmt(d.overlap.tokens, 0)} tokens`);
+      r(translate`${d.n} 路同时解码吞吐`, fmtRate(d.overlap?.throughput, d.overlapEstimate?.throughput));
+      const window = d.overlap ?? d.overlapEstimate;
+      if (window) r(translate('共同解码窗口 / 输出量'), `${fmtS(window.windowMs)} / ${d.overlap ? '' : '≈'}${fmt(window.tokens, 0)} tokens`);
       r(translate('并发 端到端输出吞吐'), fmtRate(d.throughput));
-      r(translate('各路解码速率平均（最慢~最快）'), d.avgSpeed == null ? translate('不可用') : `${fmtRate(d.avgSpeed)}（${fmt(d.minSpeed, 1)}–${fmt(d.maxSpeed, 1)}）`);
+      const estimate = d.estimatedStats;
+      const mean = fmtRate(d.avgSpeed, estimate?.avg);
+      const range = d.avgSpeed ?? estimate?.avg;
+      r(translate('各路解码速率平均（最慢~最快）'), range == null ? mean
+        : `${mean}（${fmt(d.minSpeed ?? estimate?.min, 1)}–${fmt(d.maxSpeed ?? estimate?.max, 1)}）`);
       r(translate('并发 平均首包'), fmtS(d.ttft && d.ttft.avg));
       r(translate('缓存命中率'), d.cacheHitRate != null ? `${(d.cacheHitRate * 100).toFixed(1)}%` : translate('服务未返回'));
       if (d.chunkGap) r(translate('并发 输出块间隔 P50 / P99'), translate`${fmt(d.chunkGap.p50, 1)} / ${fmt(d.chunkGap.p99, 1)} 毫秒`);
@@ -1388,9 +1410,10 @@
     const L = [translate`【TokenSpeed 大模型 API 测速】`, translate`模型：${cfg.model}（${host(cfg.baseUrl)}）`];
     if (ping) L.push(translate`响应延迟：${fmt(ping.min, 0)} 毫秒`);
     if (p) L.push(translate`首包前有效输入吞吐：${fmtRate(p.throughput)}`);
-    if (s) L.push(translate`单发 2 秒峰值：${fmtRate(s.peak)}，解码平均 ${fmtRate(s.speed)}，端到端吞吐 ${fmtRate(s.e2eSpeed)}${s.byUser ? translate('（提前结束）') : ''}`);
+    if (s) L.push(translate`单发 2 秒峰值：${fmtRate(s.peak, s.peakEstimate)}，解码平均 ${fmtRate(s.speed, s.speedEstimate)}，端到端吞吐 ${fmtRate(s.e2eSpeed)}${s.byUser ? translate('（提前结束）') : ''}`);
     if (d) {
-      L.push(translate`${d.n} 路同时解码：${fmtRate(d.overlap?.throughput)}${d.overlap ? translate`（共同窗口 ${fmtS(d.overlap.windowMs)}）` : ''}`);
+      const window = d.overlap ?? d.overlapEstimate;
+      L.push(translate`${d.n} 路同时解码：${fmtRate(d.overlap?.throughput, d.overlapEstimate?.throughput)}${window ? translate`（共同窗口 ${fmtS(window.windowMs)}）` : ''}`);
       L.push(translate`整轮端到端输出吞吐：${fmtRate(d.throughput)}${d.byUser ? translate('（提前结束）') : ''}`);
     }
     return L.join('\n');
@@ -1425,14 +1448,14 @@
     if (p) items.push([translate('有效输入吞吐'), fmt(p.throughput, 1), p.throughput == null ? translate('不可用') : 'tok/s', COL.z2, COL.ink]);
     if (s) {
       const metric = singleMetric(s);
-      const title = metric.fallback ? metric.title : s.byUser ? translate('单发峰值（提前结束）') : translate('单发 2 秒峰值');
-      items.push([title, fmt(metric.value, 1), metric.value == null ? translate('不可用') : 'tok/s', COL.z3, '#fff']);
+      const title = s.byUser && (s.peak ?? s.peakEstimate) != null ? translate('单发峰值（提前结束）') : metric.title;
+      items.push([title, fmtMeasured(metric.value, metric.estimate), metric.value == null && metric.estimate == null ? translate('不可用') : 'tok/s', COL.z3, '#fff']);
     }
     if (d) {
       const metric = decodeMetric(d);
-      items.push([metric.title, fmt(metric.value, 1), metric.value == null ? translate('不可用') : 'tok/s', COL.c1, '#fff']);
+      items.push([metric.title, fmtMeasured(metric.value, metric.estimate), metric.value == null && metric.estimate == null ? translate('不可用') : 'tok/s', COL.c1, '#fff']);
     }
-    const bars = d ? d.lanes.filter((l) => l.ok && l.speed) : [];
+    const bars = decodeBars(d);
     const tw = (1080 - 160 - 30) / 2, th = 200, rowH = 50;
     // 先排版再定画布高度，行数多时整张图变长，元素不挤在一起
     const y0 = 400 + Math.ceil(items.length / 2) * (th + 34) + 20;
@@ -1533,7 +1556,7 @@
         c.font = font(900, 26);
         c.fillStyle = COL.ink;
         c.textAlign = 'right';
-        c.fillText(fmt(l.speed, 1), W - 80, y + 28);
+        c.fillText(barSpeed(l), W - 80, y + 28);
         c.textAlign = 'left';
       });
     }
@@ -1557,7 +1580,9 @@
     h.unshift({
       metricsVersion: 2, t: Date.now(), model: cfg.model, host: host(cfg.baseUrl), thinkingMode: cfg.thinkingMode,
       ping: ping && ping.min, prefill: p && p.throughput, single: s && !s.byUser ? s.peak : null,
-      singleE2E: s?.e2eSpeed ?? null, decode: d && d.throughput, decodeOverlap: d ? d.overlap?.throughput ?? null : undefined, n: d && d.n,
+      singleEstimate: s && !s.byUser ? s.peakEstimate : null,
+      singleE2E: s?.e2eSpeed ?? null, decode: d && d.throughput, decodeOverlap: d ? d.overlap?.throughput ?? null : undefined,
+      decodeEstimate: d?.overlapEstimate?.throughput, n: d && d.n,
     });
     store.set('ts3.hist', h.slice(0, 50));
   }
@@ -1570,8 +1595,8 @@
             <div class="h-host">${esc(x.host)}${thinkingLabels[x.thinkingMode] && x.thinkingMode !== 'default' ? translate(' · 思考') + translate(thinkingLabels[x.thinkingMode]) : ''}${x.metricsVersion === 2 ? '' : translate(' · 旧版统计口径')}</div>
             <div class="h-vals"><div>${translate('延迟')}<b>${x.ping != null ? fmt(x.ping, 0) : '—'}</b></div>
             <div>${translate('读取')}<b>${fmt(x.prefill, 1)}</b></div>
-            <div>${translate(x.single == null && x.singleE2E != null ? '单发端到端' : '峰值')}<b>${fmt(x.single ?? x.singleE2E, 1)}</b></div>
-            <div>${translate(x.decodeOverlap != null || x.decode == null ? '同时解码' : '并发端到端')}<b>${fmt(x.decodeOverlap ?? x.decode, 1)}</b></div></div></div>`
+            <div>${translate(x.single == null && x.singleEstimate == null && x.singleE2E != null ? '单发端到端' : '峰值')}<b>${fmtMeasured(x.single ?? (x.singleEstimate == null ? x.singleE2E : null), x.singleEstimate)}</b></div>
+            <div>${translate(x.decodeOverlap != null || x.decodeEstimate != null || x.decode == null ? '同时解码' : '并发端到端')}<b>${fmtMeasured(x.decodeOverlap ?? (x.decodeEstimate == null ? x.decode : null), x.decodeEstimate)}</b></div></div></div>`
           )
           .join('')
       : `<div class="h-empty">${translate('还没有测速记录')}</div>`;
