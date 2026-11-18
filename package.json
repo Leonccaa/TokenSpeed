@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "mock": "node scripts/mock-server.js",
-    "test": "node --test scripts/benchmark.test.js"
+    "test": "node --test scripts/benchmark.test.js",
+    "test:rankings": "node --test scripts/rankings.test.js"
   },
   "engines": {
     "node": ">=18"

@@ -1244,6 +1244,7 @@
     if (S.error && S.error !== '已停止') parts.push(`<span class="err">测试未全部完成：${esc(S.error)}</span>`);
     else if (S.error) parts.push('测试已手动停止');
     $('#verdict').innerHTML = parts.join('；') + (parts.length ? '。' : '');
+    syncRankingAction();
 
     const bars = d ? d.lanes.filter((l) => l.ok && l.speed) : [];
     $('#rBarsCard').hidden = bars.length < 2;
@@ -1503,6 +1504,116 @@
       : '<div class="h-empty">还没有测速记录</div>';
   }
 
+  const board = $('#rankings');
+  const publishDialog = $('#publishRanking');
+  let rankingsEnabled = false;
+  let rankingsLoad;
+
+  function rankingScores() {
+    const { summary, demo, error, prefill, single, decode } = S;
+    if (!summary || demo || error || single?.byUser || decode?.byUser) return null;
+    const scores = { prefill: prefill?.throughput, peak: single?.peak, decode: decode?.overlap?.throughput };
+    return Object.values(scores).every((value) => Number.isFinite(value) && value >= 0.1) ? scores : null;
+  }
+
+  function syncRankingAction() {
+    const canPublish = Boolean(rankingScores());
+    $('#btnPublishRanking').hidden = !rankingsEnabled || !canPublish || Boolean(S.rankingSubmitted);
+    $('#rankUnavailable').hidden = !rankingsEnabled || !S.summary || S.demo || canPublish;
+  }
+
+  async function loadRankings() {
+    rankingsLoad?.abort();
+    const request = new AbortController();
+    rankingsLoad = request;
+    const status = $('#rankingsStatus');
+    const table = $('#rankingsTable');
+    table.hidden = true;
+    status.textContent = '正在读取榜单…';
+    try {
+      const response = await fetch('./api/rankings?sort=' + encodeURIComponent($('#rankingSort').value), { signal: request.signal });
+      if (!response.ok) throw new Error();
+      const { entries } = await response.json();
+      if (request.signal.aborted) return;
+      $('#rankingsRows').innerHTML = entries.map((entry, i) => `<tr>
+        <td>${i + 1}</td>
+        <th scope="row"><strong>${esc(entry.model)}</strong><small>${esc(entry.device)}</small><small>${esc(entry.framework)}</small></th>
+        <td><strong>${fmt(entry.score, 0)}</strong></td>
+        <td>${fmt(entry.prefill, 1)}</td><td>${fmt(entry.peak, 1)}</td><td>${fmt(entry.decode, 1)}</td>
+      </tr>`).join('');
+      table.hidden = !entries.length;
+      status.textContent = entries.length ? '' : '还没有公开成绩。';
+    } catch (_) {
+      if (!request.signal.aborted) status.textContent = '榜单暂时无法读取，请稍后重试。';
+    }
+  }
+
+  function showRankings() {
+    if (!rankingsEnabled) return;
+    if (!board.open) board.showModal();
+    history.replaceState(null, '', '#rankings');
+    loadRankings();
+  }
+
+  $('#btnRankings').addEventListener('click', showRankings);
+  $('#rankingSort').addEventListener('change', loadRankings);
+  board.addEventListener('close', () => {
+    rankingsLoad?.abort();
+    if (location.hash === '#rankings') history.replaceState(null, '', location.pathname + location.search);
+  });
+  window.addEventListener('hashchange', () => {
+    if (location.hash === '#rankings') showRankings();
+    else if (board.open) board.close();
+  });
+
+  $('#btnPublishRanking').addEventListener('click', () => {
+    const scores = rankingScores();
+    if (!scores) return;
+    $('#rankModel').textContent = S.cfg.model;
+    $('#rankPrefill').textContent = fmtRate(scores.prefill);
+    $('#rankPeak').textContent = fmtRate(scores.peak);
+    $('#rankDecode').textContent = fmtRate(scores.decode);
+    $('#rankForm').reset();
+    $('#rankSubmitStatus').textContent = '';
+    publishDialog.showModal();
+  });
+  $('#btnCancelRanking').addEventListener('click', () => publishDialog.close());
+  publishDialog.addEventListener('cancel', (event) => {
+    if ($('#btnConfirmRanking').disabled) event.preventDefault();
+  });
+  $('#rankForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const scores = rankingScores();
+    const confirm = $('#btnConfirmRanking');
+    if (!scores || confirm.disabled) return;
+    const cancel = $('#btnCancelRanking');
+    const status = $('#rankSubmitStatus');
+    confirm.disabled = cancel.disabled = true;
+    status.textContent = '正在提交…';
+    try {
+      const response = await fetch('./api/rankings', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ model: S.cfg.model, device: $('#rankDevice').value, framework: $('#rankFramework').value, scores }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || '提交失败');
+      if (result.status === 'below_limit') {
+        status.textContent = '本次综合分未进入榜单。';
+        return;
+      }
+      S.rankingSubmitted = true;
+      syncRankingAction();
+      publishDialog.close();
+      toast(result.status === 'kept' ? '榜单保留该组合的更高成绩' : '成绩已公开');
+      showRankings();
+    } catch (error) {
+      status.textContent = error.message || '提交失败，请稍后重试。';
+    } finally {
+      confirm.disabled = cancel.disabled = false;
+    }
+  });
+
   // ---------------- 按钮
   $('#btnStart').addEventListener('click', () => start(false));
   $('#btnDemo').addEventListener('click', () => start(true));
@@ -1541,4 +1652,10 @@
   });
 
   restore();
+  fetch('./api/info').then((response) => response.json()).then((info) => {
+    rankingsEnabled = info.rankings === true;
+    $('#btnRankings').hidden = !rankingsEnabled;
+    syncRankingAction();
+    if (location.hash === '#rankings') showRankings();
+  }).catch(() => {});
 })();

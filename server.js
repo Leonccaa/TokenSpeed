@@ -12,6 +12,13 @@ const { listModels } = require('./lib/client');
 const { buildBrowserBundle } = require('./lib/browser-bundle');
 const D = require('./lib/dataset');
 const mock = require('./lib/mock');
+let rankings;
+let InvalidRanking;
+if (process.env.RANKINGS_DB) {
+  const rankingModule = require('./lib/rankings');
+  rankings = rankingModule.openRankings(process.env.RANKINGS_DB);
+  InvalidRanking = rankingModule.InvalidRanking;
+}
 // 前端选择「演示模式」时 baseUrl 传 "demo"，这里换成本机内置的演示服务
 const useDemo = (cfg) => {
   if (cfg && cfg.baseUrl === 'demo') {
@@ -158,8 +165,30 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 200, { error: e.message });
       }
     }
+    if (rankings && url.pathname === '/api/rankings') {
+      res.setHeader('Cache-Control', 'no-store');
+      if (req.method === 'GET') return sendJson(res, 200, { entries: rankings.list(url.searchParams.get('sort')) });
+      if (req.method === 'POST') {
+        if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) {
+          return sendJson(res, 415, { error: '上榜请求须为 JSON' });
+        }
+        let input;
+        try {
+          input = await readJson(req, 4096);
+        } catch (_) {
+          return sendJson(res, 400, { error: '上榜请求不是有效的 JSON' });
+        }
+        try {
+          return sendJson(res, 200, rankings.submit(input));
+        } catch (error) {
+          if (error instanceof InvalidRanking) return sendJson(res, 400, { error: error.message });
+          return sendJson(res, 503, { error: '榜单暂不可写入，请稍后重试' });
+        }
+      }
+    }
     if (req.method === 'GET' && url.pathname === '/api/info') {
       return sendJson(res, 200, {
+        rankings: Boolean(rankings),
         dataset: { items: D.ITEMS.length, chars: D.TOTAL_CHARS, sources: ['HumanEval (164)', 'MBPP (974)'] },
       });
     }

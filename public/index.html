@@ -19,6 +19,10 @@
       <svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" /><path d="M17 9a4 4 0 0 1 0 6" /></svg>
       <span>音效</span>
     </button>
+    <button class="nav-btn" id="btnRankings" type="button" aria-label="公开榜单" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M6 16v-4M12 16V5M18 16V9" /></svg>
+      <span>榜单</span>
+    </button>
     <button class="nav-btn" id="btnHistory" type="button" title="历史记录">
       <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5M12 7v5l3 2" /></svg>
       <span>历史</span>
@@ -157,8 +161,10 @@
           <button class="btn primary" id="btnAgain" type="button">再测一次</button>
           <button class="btn" id="btnShare" type="button">保存分享图</button>
           <button class="btn" id="btnCopy" type="button">复制结果</button>
+          <button class="btn" id="btnPublishRanking" type="button" hidden>提交上榜</button>
           <button class="btn" id="btnBack" type="button">换个模型</button>
         </div>
+        <p class="rank-note" id="rankUnavailable" hidden>上榜需要完整的 Prefill、单发峰值和同时解码成绩。</p>
       </section>
 
       <!-- 仪表 -->
@@ -212,6 +218,58 @@
       <div class="hist" id="hist"></div>
     </div>
   </div>
+
+  <dialog class="card rank-dialog" id="rankings" aria-labelledby="rankingsTitle">
+    <header class="rank-head">
+      <h2 id="rankingsTitle">公开榜单</h2>
+      <form method="dialog"><button class="nav-btn icon" type="submit" aria-label="关闭榜单">×</button></form>
+    </header>
+    <p class="rank-note">成绩由访客自愿提交。设备和框架由提交者填写，网络与测速设置会影响成绩。</p>
+    <label class="rank-sort">排序
+      <select id="rankingSort">
+        <option value="score">综合分</option>
+        <option value="prefill">Prefill</option>
+        <option value="peak">单发峰值</option>
+        <option value="decode">同时解码</option>
+      </select>
+    </label>
+    <p class="rank-note" id="rankingsStatus" role="status"></p>
+    <div class="rank-scroll" id="rankingsTable" tabindex="0" role="region" aria-label="榜单表格" hidden>
+      <table class="rank-table">
+        <thead><tr>
+          <th scope="col">名次</th><th scope="col">模型 / 设备 / 框架</th><th scope="col">综合分</th>
+          <th scope="col">Prefill<br><small>tok/s</small></th>
+          <th scope="col">单发峰值<br><small>tok/s</small></th>
+          <th scope="col">同时解码<br><small>tok/s</small></th>
+        </tr></thead>
+        <tbody id="rankingsRows"></tbody>
+      </table>
+    </div>
+    <details class="rank-rules">
+      <summary>计分与入榜</summary>
+      <p>综合分是三项成绩分别除以 4,000、200、800 tok/s 后的几何平均值，再乘以 1,000 并四舍五入。同一模型、设备和框架组合保留最高综合分。每种排序显示前 100 条。</p>
+    </details>
+  </dialog>
+
+  <dialog class="card rank-dialog rank-submit" id="publishRanking" aria-labelledby="publishRankingTitle">
+    <form id="rankForm">
+      <header class="rank-head"><h2 id="publishRankingTitle">确认公开成绩</h2></header>
+      <p class="rank-note">点「确认上榜」后，以下信息会存到本站服务器并公开展示。请勿在字段中填写 Key、接口地址或私人信息。</p>
+      <dl class="rank-preview">
+        <div><dt>模型</dt><dd id="rankModel"></dd></div>
+        <div><dt>Prefill</dt><dd id="rankPrefill"></dd></div>
+        <div><dt>单发峰值</dt><dd id="rankPeak"></dd></div>
+        <div><dt>同时解码</dt><dd id="rankDecode"></dd></div>
+      </dl>
+      <label class="rank-field">设备 <input id="rankDevice" required maxlength="120" placeholder="如 4× V100 32GB，或未知" autocomplete="off" /></label>
+      <label class="rank-field">推理框架 <input id="rankFramework" required maxlength="120" placeholder="如 ReVolta，或未知" autocomplete="off" /></label>
+      <p id="rankSubmitStatus" class="rank-note" role="status"></p>
+      <div class="r-actions">
+        <button class="btn primary" id="btnConfirmRanking" type="submit">确认上榜</button>
+        <button class="btn" id="btnCancelRanking" type="button">暂不上榜</button>
+      </div>
+    </form>
+  </dialog>
 
   <div class="toast" id="toast" role="status"></div>
   <script src="app.js"></script>
